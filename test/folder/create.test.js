@@ -27,7 +27,9 @@ describe('handleCreateFolder', () => {
       1,
       'dummy_access_token',
       'GET',
-      expect.stringContaining("me/mailFolders?$filter=displayName eq 'MyFolder'"),
+      'me/mailFolders',
+      null,
+      { $filter: "displayName eq 'MyFolder'", $select: 'id,displayName' },
     );
     expect(callGraphAPI).toHaveBeenNthCalledWith(
       2,
@@ -52,7 +54,9 @@ describe('handleCreateFolder', () => {
       1,
       'dummy_access_token',
       'GET',
-      expect.stringContaining("me/mailFolders/parent-id/childFolders?$filter=displayName eq 'Legal'"),
+      'me/mailFolders/parent-id/childFolders',
+      null,
+      { $filter: "displayName eq 'Legal'", $select: 'id,displayName' },
     );
     expect(callGraphAPI).toHaveBeenNthCalledWith(
       2,
@@ -129,7 +133,9 @@ describe('handleCreateFolder', () => {
       1,
       'dummy_access_token',
       'GET',
-      expect.stringContaining("displayName eq 'Daniel''s Folder'"),
+      'me/mailFolders',
+      null,
+      { $filter: "displayName eq 'Daniel''s Folder'", $select: 'id,displayName' },
     );
   });
 });
