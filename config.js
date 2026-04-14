@@ -3,6 +3,7 @@
  */
 const path = require('path');
 const os = require('os');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Ensure we have a home directory path even if process.env.HOME is undefined
 const homeDir = process.env.HOME || process.env.USERPROFILE || os.homedir() || '/tmp';

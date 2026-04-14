@@ -24,22 +24,22 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// CSRF state store (state -> timestamp, cleaned up periodically)
+// CSRF state store (state -> { timestamp, codeVerifier }, cleaned up periodically)
 const pendingStates = new Map();
 const TEN_MINUTES = 10 * 60 * 1000;
 
 // Periodically clean up expired CSRF states to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
-  for (const [key, timestamp] of pendingStates.entries()) {
-    if (now - timestamp > TEN_MINUTES) pendingStates.delete(key);
+  for (const [key, value] of pendingStates.entries()) {
+    if (now - value.timestamp > TEN_MINUTES) pendingStates.delete(key);
   }
 }, 5 * 60 * 1000).unref(); // unref so the timer doesn't prevent process exit
 
 // Authentication configuration
 const AUTH_CONFIG = {
-  clientId: process.env.MS_CLIENT_ID || '', // Set your client ID as an environment variable
-  clientSecret: process.env.MS_CLIENT_SECRET || '', // Set your client secret as an environment variable
+  clientId: process.env.OUTLOOK_CLIENT_ID || '', // Set your client ID as an environment variable
+  clientSecret: process.env.OUTLOOK_CLIENT_SECRET || '', // Set your client secret as an environment variable
   tenantId: process.env.MS_TENANT_ID || 'common',
   authorityHost: (process.env.MS_AUTHORITY_HOST || 'https://login.microsoftonline.com').replace(/\/+$/, ''),
   redirectUri: 'http://localhost:3333/auth/callback',
@@ -76,6 +76,7 @@ const server = http.createServer((req, res) => {
       `);
       return;
     }
+    const { codeVerifier } = pendingStates.get(query.state);
     pendingStates.delete(query.state);
 
     if (query.error) {
@@ -108,7 +109,7 @@ const server = http.createServer((req, res) => {
       console.log('Authorization code received, exchanging for tokens...');
 
       // Exchange code for tokens
-      exchangeCodeForTokens(query.code)
+      exchangeCodeForTokens(query.code, codeVerifier)
         .then((tokens) => {
           console.log('Token exchange successful');
           res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -184,7 +185,7 @@ const server = http.createServer((req, res) => {
     console.log('Auth request received, redirecting to Microsoft login...');
     
     // Verify credentials are set
-    if (!AUTH_CONFIG.clientId || !AUTH_CONFIG.clientSecret) {
+    if (!AUTH_CONFIG.clientId) {
       res.writeHead(500, { 'Content-Type': 'text/html' });
       res.end(`
         <html>
@@ -200,21 +201,21 @@ const server = http.createServer((req, res) => {
           <body>
             <h1>Configuration Error</h1>
             <div class="error-box">
-              <p>Microsoft Graph API credentials are not set. Please set the following environment variables:</p>
-              <ul>
-                <li><code>MS_CLIENT_ID</code></li>
-                <li><code>MS_CLIENT_SECRET</code></li>
-              </ul>
+              <p>Microsoft Graph API client ID is not set. Please set the <code>OUTLOOK_CLIENT_ID</code> environment variable.</p>
             </div>
           </body>
         </html>
       `);
       return;
     }
-    
+
+    // Generate PKCE code verifier and challenge
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+
     // Generate cryptographically secure state parameter for CSRF protection
     const state = crypto.randomBytes(32).toString('hex');
-    pendingStates.set(state, Date.now());
+    pendingStates.set(state, { timestamp: Date.now(), codeVerifier });
 
     // Build the authorization URL
     const authParams = {
@@ -223,7 +224,9 @@ const server = http.createServer((req, res) => {
       redirect_uri: AUTH_CONFIG.redirectUri,
       scope: AUTH_CONFIG.scopes.join(' '),
       response_mode: 'query',
-      state
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256'
     };
     
     const authUrl = `${AUTH_CONFIG.authorityHost}/${AUTH_CONFIG.tenantId}/oauth2/v2.0/authorize?${querystring.stringify(authParams)}`;
@@ -264,15 +267,15 @@ const server = http.createServer((req, res) => {
   }
 });
 
-function exchangeCodeForTokens(code) {
+function exchangeCodeForTokens(code, codeVerifier) {
   return new Promise((resolve, reject) => {
     const postData = querystring.stringify({
       client_id: AUTH_CONFIG.clientId,
-      client_secret: AUTH_CONFIG.clientSecret,
       code: code,
       redirect_uri: AUTH_CONFIG.redirectUri,
       grant_type: 'authorization_code',
-      scope: AUTH_CONFIG.scopes.join(' ')
+      scope: AUTH_CONFIG.scopes.join(' '),
+      code_verifier: codeVerifier
     });
     
     const options = {
@@ -333,9 +336,9 @@ server.listen(PORT, () => {
   console.log(`Waiting for authentication callback at ${AUTH_CONFIG.redirectUri}`);
   console.log(`Token will be stored at: ${AUTH_CONFIG.tokenStorePath}`);
   
-  if (!AUTH_CONFIG.clientId || !AUTH_CONFIG.clientSecret) {
-    console.log('\n⚠️  WARNING: Microsoft Graph API credentials are not set.');
-    console.log('   Please set the MS_CLIENT_ID and MS_CLIENT_SECRET environment variables.');
+  if (!AUTH_CONFIG.clientId) {
+    console.log('\n⚠️  WARNING: Microsoft Graph API client ID is not set.');
+    console.log('   Please set the OUTLOOK_CLIENT_ID environment variable.');
   }
 });
 
