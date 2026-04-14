@@ -25,9 +25,6 @@ yarn-error.log*
 *.swp
 *.swo
 
-# Test scripts
-test-folders.js
-
 # Claude Code local settings
 .claude/settings.local.json
 .mcp.json
