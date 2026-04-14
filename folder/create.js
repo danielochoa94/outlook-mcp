@@ -64,27 +64,33 @@ async function handleCreateFolder(args) {
  */
 async function createMailFolder(accessToken, folderName, parentFolderName) {
   try {
-    // Check if a folder with this name already exists
-    const existingFolder = await getFolderIdByName(accessToken, folderName);
-    if (existingFolder) {
-      return {
-        success: false,
-        message: `A folder named "${folderName}" already exists.`
-      };
-    }
-    
-    // If parent folder specified, find its ID
+    // If parent folder specified, find its ID first
     let endpoint = 'me/mailFolders';
+    let parentId = null;
     if (parentFolderName) {
-      const parentId = await getFolderIdByName(accessToken, parentFolderName);
+      parentId = await getFolderIdByName(accessToken, parentFolderName);
       if (!parentId) {
         return {
           success: false,
           message: `Parent folder "${parentFolderName}" not found. Please specify a valid parent folder or leave it blank to create at the root level.`
         };
       }
-      
+
       endpoint = `me/mailFolders/${parentId}/childFolders`;
+    }
+
+    // Check for a duplicate only within the target parent (not globally)
+    // OData escapes single quotes by doubling them
+    const escapedFolderName = folderName.replace(/'/g, "''");
+    const checkEndpoint = parentId
+      ? `me/mailFolders/${parentId}/childFolders?$filter=displayName eq '${escapedFolderName}'&$select=id,displayName`
+      : `me/mailFolders?$filter=displayName eq '${escapedFolderName}'&$select=id,displayName`;
+    const existing = await callGraphAPI(accessToken, 'GET', checkEndpoint);
+    if (existing && existing.value && existing.value.length > 0) {
+      return {
+        success: false,
+        message: `A folder named "${folderName}" already exists${parentFolderName ? ` inside "${parentFolderName}"` : ' at the root level'}.`
+      };
     }
     
     // Create the folder
