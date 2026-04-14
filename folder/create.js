@@ -83,9 +83,12 @@ async function createMailFolder(accessToken, folderName, parentFolderName) {
     // OData escapes single quotes by doubling them
     const escapedFolderName = folderName.replace(/'/g, "''");
     const checkEndpoint = parentId
-      ? `me/mailFolders/${parentId}/childFolders?$filter=displayName eq '${escapedFolderName}'&$select=id,displayName`
-      : `me/mailFolders?$filter=displayName eq '${escapedFolderName}'&$select=id,displayName`;
-    const existing = await callGraphAPI(accessToken, 'GET', checkEndpoint);
+      ? `me/mailFolders/${parentId}/childFolders`
+      : `me/mailFolders`;
+    const existing = await callGraphAPI(accessToken, 'GET', checkEndpoint, null, {
+      $filter: `displayName eq '${escapedFolderName}'`,
+      $select: 'id,displayName'
+    });
     if (existing && existing.value && existing.value.length > 0) {
       return {
         success: false,
