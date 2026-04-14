@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { fetchChildFoldersRecursive } = require('../email/folder-utils');
 
 /**
  * List folders handler
@@ -85,43 +86,29 @@ async function getAllFoldersHierarchy(accessToken, includeItemCounts) {
       return [];
     }
     
-    // Get child folders for folders with children
-    const foldersWithChildren = response.value.filter(f => f.childFolderCount > 0);
-    
-    const childFolderPromises = foldersWithChildren.map(async (folder) => {
-      try {
-        const childResponse = await callGraphAPI(
-          accessToken,
-          'GET',
-          `me/mailFolders/${folder.id}/childFolders`,
-          null,
-          { $select: selectFields }
-        );
-        
-        // Add parent folder info to each child
-        const childFolders = childResponse.value || [];
-        childFolders.forEach(child => {
-          child.parentFolder = folder.displayName;
-        });
-        
-        return childFolders;
-      } catch (error) {
-        console.error(`Error getting child folders for "${folder.displayName}": ${error.message}`);
-        return [];
-      }
-    });
-    
-    const childFolders = await Promise.all(childFolderPromises);
-    const allChildFolders = childFolders.flat();
-    
     // Add top-level flag to parent folders
     const topLevelFolders = response.value.map(folder => ({
       ...folder,
       isTopLevel: true
     }));
-    
-    // Combine all folders
-    return [...topLevelFolders, ...allChildFolders];
+
+    // Recursively fetch all child folders at any depth
+    const allFolders = [...topLevelFolders];
+    await fetchChildFoldersRecursive(accessToken, response.value, allFolders);
+
+    // Mark non-top-level folders with their parent display name for flat list view
+    const topLevelIds = new Set(response.value.map(f => f.id));
+    const folderMap = new Map(allFolders.map(f => [f.id, f]));
+    allFolders.forEach(folder => {
+      if (!topLevelIds.has(folder.id) && folder.parentFolderId) {
+        const parent = folderMap.get(folder.parentFolderId);
+        if (parent) {
+          folder.parentFolder = parent.displayName;
+        }
+      }
+    });
+
+    return allFolders;
   } catch (error) {
     console.error(`Error getting all folders: ${error.message}`);
     throw error;
