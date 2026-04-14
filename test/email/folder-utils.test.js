@@ -62,8 +62,11 @@ describe('resolveFolderPath', () => {
       const customFolderId = 'custom-folder-id-123';
       const customFolderName = 'MyCustomFolder';
 
+      // getAllFolders fetches all top-level folders in one call
       callGraphAPI.mockResolvedValueOnce({
-        value: [{ id: customFolderId, displayName: customFolderName }]
+        value: [
+          { id: customFolderId, displayName: customFolderName, childFolderCount: 0 }
+        ]
       });
 
       const result = await resolveFolderPath(mockAccessToken, customFolderName);
@@ -74,49 +77,46 @@ describe('resolveFolderPath', () => {
         'GET',
         'me/mailFolders',
         null,
-        { $filter: `displayName eq '${customFolderName}'` }
+        {
+          $top: 100,
+          $select: 'id,displayName,parentFolderId,childFolderCount,totalItemCount,unreadItemCount'
+        }
       );
     });
 
-    test('should try case-insensitive search when exact match fails', async () => {
+    test('should resolve custom folder with case-insensitive match', async () => {
       const customFolderId = 'custom-folder-id-456';
       const customFolderName = 'ProjectAlpha';
 
-      // First call returns empty (exact match fails)
-      callGraphAPI.mockResolvedValueOnce({ value: [] });
-
-      // Second call returns all folders for case-insensitive match
+      // getAllFolders returns all folders; case-insensitive match finds 'projectalpha'
       callGraphAPI.mockResolvedValueOnce({
         value: [
-          { id: 'other-id', displayName: 'OtherFolder' },
-          { id: customFolderId, displayName: 'projectalpha' }
+          { id: 'other-id', displayName: 'OtherFolder', childFolderCount: 0 },
+          { id: customFolderId, displayName: 'projectalpha', childFolderCount: 0 }
         ]
       });
 
       const result = await resolveFolderPath(mockAccessToken, customFolderName);
 
       expect(result).toBe(`me/mailFolders/${customFolderId}/messages`);
-      expect(callGraphAPI).toHaveBeenCalledTimes(2);
+      expect(callGraphAPI).toHaveBeenCalledTimes(1);
     });
 
     test('should fall back to inbox when custom folder is not found', async () => {
       const nonExistentFolder = 'NonExistentFolder';
 
-      // First call returns empty (exact match fails)
-      callGraphAPI.mockResolvedValueOnce({ value: [] });
-
-      // Second call returns folders without a match
+      // getAllFolders returns folders that don't match
       callGraphAPI.mockResolvedValueOnce({
         value: [
-          { id: 'id1', displayName: 'Folder1' },
-          { id: 'id2', displayName: 'Folder2' }
+          { id: 'id1', displayName: 'Folder1', childFolderCount: 0 },
+          { id: 'id2', displayName: 'Folder2', childFolderCount: 0 }
         ]
       });
 
       const result = await resolveFolderPath(mockAccessToken, nonExistentFolder);
 
       expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
-      expect(callGraphAPI).toHaveBeenCalledTimes(2);
+      expect(callGraphAPI).toHaveBeenCalledTimes(1);
     });
 
     test('should fall back to inbox when API call fails', async () => {
@@ -148,8 +148,9 @@ describe('getFolderIdByName', () => {
     const folderId = 'folder-id-123';
     const folderName = 'TestFolder';
 
+    // getAllFolders fetches all folders in one call
     callGraphAPI.mockResolvedValueOnce({
-      value: [{ id: folderId, displayName: folderName }]
+      value: [{ id: folderId, displayName: folderName, childFolderCount: 0 }]
     });
 
     const result = await getFolderIdByName(mockAccessToken, folderName);
@@ -160,7 +161,10 @@ describe('getFolderIdByName', () => {
       'GET',
       'me/mailFolders',
       null,
-      { $filter: `displayName eq '${folderName}'` }
+      {
+        $top: 100,
+        $select: 'id,displayName,parentFolderId,childFolderCount,totalItemCount,unreadItemCount'
+      }
     );
   });
 
@@ -168,39 +172,33 @@ describe('getFolderIdByName', () => {
     const folderId = 'folder-id-456';
     const folderName = 'TestFolder';
 
-    // First call returns empty (exact match fails)
-    callGraphAPI.mockResolvedValueOnce({ value: [] });
-
-    // Second call returns folders with case-insensitive match
+    // getAllFolders returns all folders; case-insensitive search finds 'testfolder'
     callGraphAPI.mockResolvedValueOnce({
       value: [
-        { id: folderId, displayName: 'testfolder' }
+        { id: folderId, displayName: 'testfolder', childFolderCount: 0 }
       ]
     });
 
     const result = await getFolderIdByName(mockAccessToken, folderName);
 
     expect(result).toBe(folderId);
-    expect(callGraphAPI).toHaveBeenCalledTimes(2);
+    expect(callGraphAPI).toHaveBeenCalledTimes(1);
   });
 
   test('should return null when folder is not found', async () => {
     const folderName = 'NonExistentFolder';
 
-    // First call returns empty
-    callGraphAPI.mockResolvedValueOnce({ value: [] });
-
-    // Second call returns folders without a match
+    // getAllFolders returns folders that don't match
     callGraphAPI.mockResolvedValueOnce({
       value: [
-        { id: 'id1', displayName: 'OtherFolder' }
+        { id: 'id1', displayName: 'OtherFolder', childFolderCount: 0 }
       ]
     });
 
     const result = await getFolderIdByName(mockAccessToken, folderName);
 
     expect(result).toBeNull();
-    expect(callGraphAPI).toHaveBeenCalledTimes(2);
+    expect(callGraphAPI).toHaveBeenCalledTimes(1);
   });
 
   test('should return null when API call fails', async () => {
