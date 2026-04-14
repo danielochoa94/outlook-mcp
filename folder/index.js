@@ -4,6 +4,7 @@
 const handleListFolders = require('./list');
 const handleCreateFolder = require('./create');
 const handleMoveEmails = require('./move');
+const handleMoveFolder = require('./move-folder');
 
 // Folder management tool definitions
 const folderTools = [
@@ -67,6 +68,29 @@ const folderTools = [
       required: ["emailIds", "targetFolder"]
     },
     handler: handleMoveEmails
+  },
+  {
+    name: "move-folder",
+    description: "Moves a mail folder to a new parent folder and/or renames it",
+    inputSchema: {
+      type: "object",
+      properties: {
+        folder: {
+          type: "string",
+          description: "Name or path of the folder to move/rename (e.g. 'Projects' or 'Work/Projects')"
+        },
+        destinationFolder: {
+          type: "string",
+          description: "Name or path of the new parent folder to move it into"
+        },
+        newName: {
+          type: "string",
+          description: "New display name for the folder"
+        }
+      },
+      required: ["folder"]
+    },
+    handler: handleMoveFolder
   }
 ];
 
@@ -74,5 +98,6 @@ module.exports = {
   folderTools,
   handleListFolders,
   handleCreateFolder,
-  handleMoveEmails
+  handleMoveEmails,
+  handleMoveFolder
 };
