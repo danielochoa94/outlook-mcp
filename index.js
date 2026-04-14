@@ -18,9 +18,6 @@ const { calendarTools } = require("./calendar");
 const { emailTools } = require("./email");
 const { folderTools } = require("./folder");
 const { rulesTools } = require("./rules");
-const { onedriveTools } = require("./onedrive");
-const { powerAutomateTools } = require("./power-automate");
-
 // Log startup information
 console.error(`STARTING ${config.SERVER_NAME.toUpperCase()} MCP SERVER`);
 console.error(`Test mode is ${config.USE_TEST_MODE ? "enabled" : "disabled"}`);
@@ -32,8 +29,6 @@ const TOOLS = [
   ...emailTools,
   ...folderTools,
   ...rulesTools,
-  ...onedriveTools,
-  ...powerAutomateTools,
 ];
 
 // Create server with tools capabilities
