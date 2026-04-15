@@ -7,18 +7,18 @@
 const config = require('../config');
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
-const { processHtmlEmail, sanitizeHtmlToText } = require('../utils/html-sanitizer');
+const { processHtmlEmail } = require('../utils/html-sanitizer');
 
 /**
  * Read email handler
  * @param {object} args - Tool arguments
  * @param {string} args.id - Email ID (required)
- * @param {boolean} args.includeRawHtml - If true, include raw HTML (unsafe, for debugging only)
+ * @param {number} args.maxChars - Max characters of body to return (default: 5000, 0 = unlimited)
  * @returns {object} - MCP response
  */
 async function handleReadEmail(args) {
   const emailId = args.id;
-  const includeRawHtml = args.includeRawHtml === true;
+  const maxChars = args.maxChars === 0 ? 0 : (args.maxChars || 5000);
 
   if (!emailId) {
     return {
@@ -93,6 +93,15 @@ async function handleReadEmail(args) {
         body = email.bodyPreview || 'No content';
       }
 
+      // Truncate body if needed
+      let truncationNote = '';
+      if (maxChars > 0 && body.length > maxChars) {
+        const totalChars = body.length;
+        const charsRemaining = totalChars - maxChars;
+        body = body.slice(0, maxChars);
+        truncationNote = `\n\n[Body truncated: ${charsRemaining} more characters not shown. Call read-email with maxChars=${totalChars} or maxChars=0 for full content.]`;
+      }
+
       // Format the email
       const formattedEmail = `From: ${sender}
 To: ${to}
@@ -101,19 +110,13 @@ Date: ${date}
 Importance: ${email.importance || 'normal'}
 Has Attachments: ${email.hasAttachments ? 'Yes' : 'No'}
 ${bodyNote}
-${body}`;
-
-      // Optionally include raw HTML for debugging (not recommended for normal use)
-      let rawHtmlSection = '';
-      if (includeRawHtml && email.body?.contentType === 'html') {
-        rawHtmlSection = `\n\n--- RAW HTML (UNSAFE - FOR DEBUGGING ONLY) ---\n${email.body.content}\n--- END RAW HTML ---`;
-      }
+${body}${truncationNote}`;
 
       return {
         content: [
           {
             type: "text",
-            text: formattedEmail + rawHtmlSection
+            text: formattedEmail
           }
         ]
       };

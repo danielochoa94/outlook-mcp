@@ -75,7 +75,7 @@ const emailTools = [
   },
   {
     name: "read-email",
-    description: "Reads the content of a specific email. HTML emails are securely sanitized to extract only visible text, preventing prompt injection attacks via hidden content.",
+    description: "Reads the content of a specific email. HTML emails are sanitized to plain text.",
     inputSchema: {
       type: "object",
       properties: {
@@ -83,9 +83,9 @@ const emailTools = [
           type: "string",
           description: "ID of the email to read"
         },
-        includeRawHtml: {
-          type: "boolean",
-          description: "Include raw HTML content (UNSAFE - for debugging only, may contain hidden prompt injection content)"
+        maxChars: {
+          type: "number",
+          description: "Maximum characters of body to return (default: 5000, use 0 for unlimited)"
         }
       },
       required: ["id"]
