@@ -52,14 +52,20 @@ async function handleMoveFolder(args) {
     const actions = [];
 
     if (destinationFolder) {
-      const destinationFolderId = await getFolderIdByName(accessToken, destinationFolder);
-      if (!destinationFolderId) {
-        return {
-          content: [{
-            type: "text",
-            text: `Destination folder "${destinationFolder}" not found. Please specify a valid folder name or path.`
-          }]
-        };
+      let destinationFolderId;
+      if (destinationFolder.toLowerCase() === 'root') {
+        // Graph API well-known folder ID for the mailbox root
+        destinationFolderId = 'msgFolderRoot';
+      } else {
+        destinationFolderId = await getFolderIdByName(accessToken, destinationFolder);
+        if (!destinationFolderId) {
+          return {
+            content: [{
+              type: "text",
+              text: `Destination folder "${destinationFolder}" not found. Please specify a valid folder name or path.`
+            }]
+          };
+        }
       }
       patchBody.parentFolderId = destinationFolderId;
       actions.push(`moved to "${destinationFolder}"`);
@@ -70,12 +76,34 @@ async function handleMoveFolder(args) {
       actions.push(`renamed to "${newName}"`);
     }
 
-    await callGraphAPI(
-      accessToken,
-      'PATCH',
-      `me/mailFolders/${folderId}`,
-      patchBody
-    );
+    // If only renaming (no move), use PATCH. For moves, use the dedicated move endpoint.
+    if (destinationFolder) {
+      const moveBody = { destinationId: patchBody.parentFolderId };
+      const moveResponse = await callGraphAPI(
+        accessToken,
+        'POST',
+        `me/mailFolders/${folderId}/move`,
+        moveBody
+      );
+
+      // If also renaming, PATCH the new folder ID after the move
+      if (newName) {
+        const movedFolderId = moveResponse.id || folderId;
+        await callGraphAPI(
+          accessToken,
+          'PATCH',
+          `me/mailFolders/${movedFolderId}`,
+          { displayName: newName }
+        );
+      }
+    } else if (newName) {
+      await callGraphAPI(
+        accessToken,
+        'PATCH',
+        `me/mailFolders/${folderId}`,
+        { displayName: newName }
+      );
+    }
 
     return {
       content: [{
