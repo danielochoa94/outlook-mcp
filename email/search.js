@@ -14,6 +14,7 @@ const { resolveFolderPath } = require('./folder-utils');
 async function handleSearchEmails(args) {
   const folder = args.folder || "inbox";
   const requestedCount = args.count || 10;
+  const skip = args.skip || 0;
   const query = args.query || '';
   const from = args.from || '';
   const to = args.to || '';
@@ -31,14 +32,15 @@ async function handleSearchEmails(args) {
     
     // Execute progressive search with pagination
     const response = await progressiveSearch(
-      endpoint, 
-      accessToken, 
+      endpoint,
+      accessToken,
       { query, from, to, subject },
       { hasAttachments, unreadOnly },
-      requestedCount
+      requestedCount,
+      skip
     );
     
-    return formatSearchResults(response);
+    return formatSearchResults(response, skip);
   } catch (error) {
     // Handle authentication errors
     if (error.message === 'Authentication required') {
@@ -67,15 +69,16 @@ async function handleSearchEmails(args) {
  * @param {object} searchTerms - Search terms (query, from, to, subject)
  * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly)
  * @param {number} maxCount - Maximum number of results to retrieve
+ * @param {number} skip - Number of results to skip for pagination
  * @returns {Promise<object>} - Search results
  */
-async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount) {
+async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms, maxCount, skip = 0) {
   // Track search strategies attempted
   const searchAttempts = [];
   
   // 1. Try combined search (most specific)
   try {
-    const params = buildSearchParams(searchTerms, filterTerms, Math.min(50, maxCount));
+    const params = buildSearchParams(searchTerms, filterTerms, Math.min(50, maxCount), skip);
     console.error("Attempting combined search with params:", params);
     searchAttempts.push("combined-search");
     
@@ -103,6 +106,10 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
           $top: Math.min(50, maxCount),
           $select: config.EMAIL_SELECT_FIELDS
         };
+
+        if (skip > 0) {
+          simplifiedParams.$skip = skip;
+        }
         
         // Build KQL terms for search
         const kqlParts = [];
@@ -143,6 +150,10 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
         $select: config.EMAIL_SELECT_FIELDS,
         $orderby: 'receivedDateTime desc'
       };
+
+      if (skip > 0) {
+        filterOnlyParams.$skip = skip;
+      }
       
       // Add the boolean filters
       addBooleanFilters(filterOnlyParams, filterTerms);
@@ -164,6 +175,10 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
     $select: config.EMAIL_SELECT_FIELDS,
     $orderby: 'receivedDateTime desc'
   };
+
+  if (skip > 0) {
+    basicParams.$skip = skip;
+  }
   
   const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, basicParams, maxCount);
   console.error(`Fallback to recent emails found ${response.value?.length || 0} results`);
@@ -184,13 +199,18 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
  * @param {object} searchTerms - Search terms (query, from, to, subject)
  * @param {object} filterTerms - Filter terms (hasAttachments, unreadOnly)
  * @param {number} count - Maximum number of results
+ * @param {number} skip - Number of results to skip
  * @returns {object} - Query parameters
  */
-function buildSearchParams(searchTerms, filterTerms, count) {
+function buildSearchParams(searchTerms, filterTerms, count, skip = 0) {
   const params = {
     $top: count,
     $select: config.EMAIL_SELECT_FIELDS
   };
+
+  if (skip > 0) {
+    params.$skip = skip;
+  }
   
   // Handle search terms
   const kqlTerms = [];
@@ -269,9 +289,10 @@ function addBooleanFiltersAsKQL(kqlTerms, filterTerms) {
 /**
  * Format search results into a readable text format
  * @param {object} response - The API response object
+ * @param {number} skip - Number of results skipped for display numbering
  * @returns {object} - MCP response object
  */
-function formatSearchResults(response) {
+function formatSearchResults(response, skip = 0) {
   if (!response.value || response.value.length === 0) {
     return {
       content: [{ 
@@ -286,8 +307,9 @@ function formatSearchResults(response) {
     const sender = email.from?.emailAddress || { name: 'Unknown', address: 'unknown' };
     const date = new Date(email.receivedDateTime).toLocaleString();
     const readStatus = email.isRead ? '' : '[UNREAD] ';
-    
-    return `${index + 1}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
+    const displayIndex = skip + index + 1;
+
+    return `${displayIndex}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
   }).join("\n");
   
   // Add search strategy info if available

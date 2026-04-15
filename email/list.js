@@ -14,20 +14,25 @@ const { resolveFolderPath } = require('./folder-utils');
 async function handleListEmails(args) {
   const folder = args.folder || "inbox";
   const requestedCount = args.count || 10;
-  
+  const skip = args.skip || 0;
+
   try {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
     // Resolve the folder path
     const endpoint = await resolveFolderPath(accessToken, folder);
-    
+
     // Add query parameters
     const queryParams = {
       $top: Math.min(50, requestedCount), // Use 50 per page for efficiency
       $orderby: 'receivedDateTime desc',
       $select: config.EMAIL_SELECT_FIELDS
     };
+
+    if (skip > 0) {
+      queryParams.$skip = skip;
+    }
     
     // Make API call with pagination support
     const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, queryParams, requestedCount);
@@ -46,14 +51,17 @@ async function handleListEmails(args) {
       const sender = email.from ? email.from.emailAddress : { name: 'Unknown', address: 'unknown' };
       const date = new Date(email.receivedDateTime).toLocaleString();
       const readStatus = email.isRead ? '' : '[UNREAD] ';
-      
-      return `${index + 1}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
+      const displayIndex = skip + index + 1;
+
+      return `${displayIndex}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
     }).join("\n");
-    
+
+    const paginationNote = skip > 0 ? ` (skipped ${skip})` : '';
+
     return {
-      content: [{ 
-        type: "text", 
-        text: `Found ${response.value.length} emails in ${folder}:\n\n${emailList}`
+      content: [{
+        type: "text",
+        text: `Found ${response.value.length} emails in ${folder}${paginationNote}:\n\n${emailList}`
       }]
     };
   } catch (error) {

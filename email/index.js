@@ -23,7 +23,11 @@ const emailTools = [
         },
         count: {
           type: "number",
-          description: "Number of emails to retrieve (default: 10, max: 50)"
+          description: "Number of emails to retrieve (default: 10, max: 50 per page)"
+        },
+        skip: {
+          type: "number",
+          description: "Number of emails to skip for pagination (default: 0). Use with count to page through results."
         }
       },
       required: []
@@ -66,7 +70,11 @@ const emailTools = [
         },
         count: {
           type: "number",
-          description: "Number of results to return (default: 10, max: 50)"
+          description: "Number of results to return (default: 10, max: 50 per page)"
+        },
+        skip: {
+          type: "number",
+          description: "Number of emails to skip for pagination (default: 0). Use with count to page through results."
         }
       },
       required: []
