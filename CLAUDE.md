@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a modular MCP (Model Context Protocol) server that provides Claude with access to Microsoft 365 services:
 - **Outlook** - Email, calendar, folders, rules
+- **To Do** - Task lists, tasks (GTD workflows)
 - **OneDrive** - Files, folders, sharing
 - **Power Automate** - Flows, environments, runs
 
@@ -31,6 +32,7 @@ Each module exports tools and handlers:
 - `email/` - Email management (list, search, read, send, mark as read)
 - `folder/` - Folder operations (list, create, move)
 - `rules/` - Email rules management
+- `todo/` - Microsoft To Do operations (list/create/delete lists, list/create/update/complete/delete tasks)
 - `onedrive/` - OneDrive operations (list, search, download, upload, share, folder ops)
 - `power-automate/` - Flow operations (list environments, list/run/toggle flows, run history)
 - `utils/` - Shared utilities including Graph API client and OData helpers
@@ -49,6 +51,7 @@ Each module exports tools and handlers:
    - `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`
    - `Calendars.Read`, `Calendars.ReadWrite`
    - `Files.Read`, `Files.ReadWrite`
+   - `Tasks.ReadWrite`
    - `User.Read`, `offline_access`
 2. Start auth server: `npm run auth-server`
 3. Use authenticate tool to get OAuth URL
