@@ -36,9 +36,9 @@ Thumbs.db
 # Accidentally committed config folder
 ~/
 
-# Personal planning docs
-email-reorg-handoff.md
+# Private markdown files
 gtd-setup-plan.md
+inbox-guidelines.md
 
 # Logs
 logs
