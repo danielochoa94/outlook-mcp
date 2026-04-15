@@ -40,24 +40,14 @@ async function resolveFolderPath(accessToken, folderName) {
     return WELL_KNOWN_FOLDERS[lowerFolderName];
   }
 
-  try {
-    // Try to find the folder by name
-    const folderId = await getFolderIdByName(accessToken, folderName);
-    if (folderId) {
-      const path = `me/mailFolders/${folderId}/messages`;
-      console.error(`Resolved folder "${folderName}" to path: ${path}`);
-      return path;
-    }
-
-    // If not found, fall back to inbox
-    console.error(
-      `Couldn't find folder "${folderName}", falling back to inbox`,
-    );
-    return WELL_KNOWN_FOLDERS["inbox"];
-  } catch (error) {
-    console.error(`Error resolving folder "${folderName}": ${error.message}`);
-    return WELL_KNOWN_FOLDERS["inbox"];
+  const folderId = await getFolderIdByName(accessToken, folderName);
+  if (folderId) {
+    const path = `me/mailFolders/${folderId}/messages`;
+    console.error(`Resolved folder "${folderName}" to path: ${path}`);
+    return path;
   }
+
+  throw new Error(`Folder "${folderName}" not found. Check that the folder name and path are correct.`);
 }
 
 /**
@@ -110,22 +100,36 @@ async function getFolderIdByName(accessToken, folderName) {
 async function getFolderIdByPath(accessToken, pathParts) {
   try {
     // Find the first segment anywhere in the folder tree (including subfolders)
+    // Use greedy matching: try longest possible segment first to handle folder
+    // names that contain "/" (e.g. "Visa/9/15 Renewal" where "9/15 Renewal" is one folder)
     const allFolders = await getAllFolders(accessToken);
-    const lowerFirst = pathParts[0].toLowerCase();
-    const firstMatch = allFolders.find(
-      (folder) => folder.displayName.toLowerCase() === lowerFirst,
-    );
 
-    if (!firstMatch) {
-      console.error(`Path segment "${pathParts[0]}" not found`);
+    // Try greedy match for the first segment(s) against top-level folders
+    let currentId = null;
+    let nextIndex = 0;
+
+    for (let length = pathParts.length; length >= 1; length--) {
+      const candidate = pathParts.slice(0, length).join("/");
+      const lowerCandidate = candidate.toLowerCase();
+      const match = allFolders.find(
+        (folder) => folder.displayName.toLowerCase() === lowerCandidate,
+      );
+      if (match) {
+        currentId = match.id;
+        nextIndex = length;
+        console.error(`Matched root segment "${candidate}" (consumed ${length} parts)`);
+        break;
+      }
+    }
+
+    if (!currentId) {
+      console.error(`No root path segment found for "${pathParts[0]}"`);
       return null;
     }
 
-    let currentId = firstMatch.id;
-
-    // Navigate remaining segments via childFolders
-    for (let i = 1; i < pathParts.length; i++) {
-      const part = pathParts[i];
+    // Navigate remaining segments via childFolders, using greedy matching
+    let i = nextIndex;
+    while (i < pathParts.length) {
       const response = await callGraphAPI(
         accessToken,
         "GET",
@@ -134,19 +138,31 @@ async function getFolderIdByPath(accessToken, pathParts) {
         { $top: 100, $select: "id,displayName" },
       );
 
-      const lowerPart = part.toLowerCase();
-      const match = (response.value || []).find(
-        (folder) => folder.displayName.toLowerCase() === lowerPart,
-      );
+      const children = response.value || [];
+      let matched = false;
 
-      if (!match) {
+      // Try longest remaining segment first (greedy), then shorter
+      for (let length = pathParts.length - i; length >= 1; length--) {
+        const candidate = pathParts.slice(i, i + length).join("/");
+        const lowerCandidate = candidate.toLowerCase();
+        const match = children.find(
+          (folder) => folder.displayName.toLowerCase() === lowerCandidate,
+        );
+        if (match) {
+          currentId = match.id;
+          console.error(`Matched child segment "${candidate}" (consumed ${length} parts)`);
+          i += length;
+          matched = true;
+          break;
+        }
+      }
+
+      if (!matched) {
         console.error(
-          `Path segment "${part}" not found under folder ID ${currentId}`,
+          `Path segment "${pathParts[i]}" not found under folder ID ${currentId}`,
         );
         return null;
       }
-
-      currentId = match.id;
     }
 
     return currentId;
