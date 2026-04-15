@@ -44,13 +44,7 @@ const AUTH_CONFIG = {
   redirectUri: 'http://localhost:3333/auth/callback',
   scopes: [
     'offline_access',
-    'User.Read',
-    'Mail.Read',
-    'Mail.ReadWrite',
-    'Mail.Send',
-    'Calendars.Read',
-    'Calendars.ReadWrite',
-    'Contacts.Read'
+    ...require('./config').AUTH_CONFIG.scopes
   ],
   tokenStorePath: path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json')
 };
