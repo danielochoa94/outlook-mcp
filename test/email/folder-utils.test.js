@@ -102,7 +102,7 @@ describe('resolveFolderPath', () => {
       expect(callGraphAPI).toHaveBeenCalledTimes(1);
     });
 
-    test('should fall back to inbox when custom folder is not found', async () => {
+    test('should throw when custom folder is not found', async () => {
       const nonExistentFolder = 'NonExistentFolder';
 
       // getAllFolders returns folders that don't match
@@ -113,20 +113,18 @@ describe('resolveFolderPath', () => {
         ]
       });
 
-      const result = await resolveFolderPath(mockAccessToken, nonExistentFolder);
-
-      expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
+      await expect(resolveFolderPath(mockAccessToken, nonExistentFolder))
+        .rejects.toThrow('Folder "NonExistentFolder" not found');
       expect(callGraphAPI).toHaveBeenCalledTimes(1);
     });
 
-    test('should fall back to inbox when API call fails', async () => {
+    test('should throw when API call fails', async () => {
       const customFolderName = 'CustomFolder';
 
       callGraphAPI.mockRejectedValueOnce(new Error('API Error'));
 
-      const result = await resolveFolderPath(mockAccessToken, customFolderName);
-
-      expect(result).toBe(WELL_KNOWN_FOLDERS['inbox']);
+      await expect(resolveFolderPath(mockAccessToken, customFolderName))
+        .rejects.toThrow('Folder "CustomFolder" not found');
       expect(callGraphAPI).toHaveBeenCalledTimes(1);
     });
   });
