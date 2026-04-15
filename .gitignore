@@ -36,6 +36,10 @@ Thumbs.db
 # Accidentally committed config folder
 ~/
 
+# Personal planning docs
+email-reorg-handoff.md
+gtd-setup-plan.md
+
 # Logs
 logs
 *.log
