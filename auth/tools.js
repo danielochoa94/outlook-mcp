@@ -3,6 +3,10 @@
  */
 const config = require('../config');
 const tokenManager = require('./token-manager');
+const TokenStorage = require('./token-storage');
+
+// Singleton for auth checks with automatic token refresh
+const tokenStorage = new TokenStorage();
 
 /**
  * About tool handler
@@ -55,25 +59,27 @@ async function handleAuthenticate(args) {
  */
 async function handleCheckAuthStatus() {
   console.error('[CHECK-AUTH-STATUS] Starting authentication status check');
-  
-  const tokens = tokenManager.loadTokenCache();
-  
-  console.error(`[CHECK-AUTH-STATUS] Tokens loaded: ${tokens ? 'YES' : 'NO'}`);
-  
-  if (!tokens || !tokens.access_token) {
-    console.error('[CHECK-AUTH-STATUS] No valid access token found');
+
+  try {
+    const accessToken = await tokenStorage.getValidAccessToken();
+
+    if (!accessToken) {
+      console.error('[CHECK-AUTH-STATUS] No valid access token found');
+      return {
+        content: [{ type: "text", text: "Not authenticated" }]
+      };
+    }
+
+    console.error('[CHECK-AUTH-STATUS] Valid access token obtained');
+    return {
+      content: [{ type: "text", text: "Authenticated and ready" }]
+    };
+  } catch (error) {
+    console.error(`[CHECK-AUTH-STATUS] Error: ${error.message}`);
     return {
       content: [{ type: "text", text: "Not authenticated" }]
     };
   }
-  
-  console.error('[CHECK-AUTH-STATUS] Access token present');
-  console.error(`[CHECK-AUTH-STATUS] Token expires at: ${tokens.expires_at}`);
-  console.error(`[CHECK-AUTH-STATUS] Current time: ${Date.now()}`);
-  
-  return {
-    content: [{ type: "text", text: "Authenticated and ready" }]
-  };
 }
 
 // Tool definitions

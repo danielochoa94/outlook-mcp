@@ -18,7 +18,6 @@ process.env.HOME = mockHomeDir; // Mock HOME for token path
 
 const baseConfig = {
   clientId: 'test-client-id',
-  clientSecret: 'test-client-secret',
   redirectUri: 'http://localhost/callback',
   scopes: ['test_scope'],
   tokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
@@ -44,10 +43,10 @@ describe('TokenStorage', () => {
       expect(tokenStorage.config.refreshTokenBuffer).toBe(5 * 60 * 1000);
     });
 
-    it('should warn if client ID or secret is missing', () => {
+    it('should warn if client ID is missing', () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       new TokenStorage({ ...baseConfig, clientId: null });
-      expect(consoleWarnSpy).toHaveBeenCalledWith("TokenStorage: Client ID or Secret is not configured (checked MS_CLIENT_ID/OUTLOOK_CLIENT_ID). Token refresh will fail.");
+      expect(consoleWarnSpy).toHaveBeenCalledWith("TokenStorage: Client ID is not configured (checked MS_CLIENT_ID/OUTLOOK_CLIENT_ID). Token refresh will fail.");
       consoleWarnSpy.mockRestore();
     });
   });
@@ -285,10 +284,10 @@ describe('TokenStorage', () => {
         await expect(exchangePromise).rejects.toThrow('Network fail');
     });
 
-    it('should reject if client ID or secret is missing', async () => {
+    it('should reject if client ID is missing', async () => {
         tokenStorage.config.clientId = null;
         await expect(tokenStorage.exchangeCodeForTokens(mockAuthCode))
-            .rejects.toThrow("Client ID or Client Secret is not configured. Cannot exchange code for tokens.");
+            .rejects.toThrow("Client ID is not configured. Cannot exchange code for tokens.");
     });
   });
 

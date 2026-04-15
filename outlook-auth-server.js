@@ -39,7 +39,6 @@ setInterval(() => {
 // Authentication configuration
 const AUTH_CONFIG = {
   clientId: process.env.OUTLOOK_CLIENT_ID || '', // Set your client ID as an environment variable
-  clientSecret: process.env.OUTLOOK_CLIENT_SECRET || '', // Set your client secret as an environment variable
   tenantId: process.env.MS_TENANT_ID || 'common',
   authorityHost: (process.env.MS_AUTHORITY_HOST || 'https://login.microsoftonline.com').replace(/\/+$/, ''),
   redirectUri: 'http://localhost:3333/auth/callback',

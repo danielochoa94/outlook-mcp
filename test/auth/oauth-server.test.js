@@ -193,7 +193,6 @@ describe('OAuth Server Routes', () => {
     it('should use default values if environment variables are not set', () => {
         const config = createAuthConfig('TEST_PREFIX_'); // Use a prefix to avoid collision
         expect(config.clientId).toBe('');
-        expect(config.clientSecret).toBe('');
         expect(config.redirectUri).toBe('http://localhost:3333/auth/callback');
         expect(config.scopes).toEqual(['offline_access', 'User.Read', 'Mail.Read']);
         expect(config.tokenEndpoint).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/token');
@@ -211,7 +210,6 @@ describe('OAuth Server Routes', () => {
         const config = createAuthConfig('MYAPP_');
 
         expect(config.clientId).toBe('env_client_id');
-        expect(config.clientSecret).toBe('env_client_secret');
         expect(config.redirectUri).toBe('http://env.redirect/uri');
         expect(config.scopes).toEqual(['scope1', 'scope2']);
         expect(config.tokenEndpoint).toBe('http://env.token/endpoint');
