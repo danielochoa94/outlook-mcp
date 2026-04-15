@@ -21,106 +21,122 @@ async function callGraphAPI(accessToken, method, path, data = null, queryParams 
     return mockData.simulateGraphAPIResponse(method, path, data, queryParams);
   }
 
-  try {
-    console.error(`Making real API call: ${method} ${path}`);
-    
-    // Check if path already contains the full URL (from nextLink)
-    let finalUrl;
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      // Path is already a full URL (from pagination nextLink)
-      finalUrl = path;
-      console.error(`Using full URL from nextLink: ${finalUrl}`);
-    } else {
-      // Build URL from path and queryParams
-      // Encode path segments properly
-      const encodedPath = path.split('/')
-        .map(segment => encodeURIComponent(segment))
-        .join('/');
-      
-      // Build query string from parameters with special handling for OData filters
-      let queryString = '';
-      if (Object.keys(queryParams).length > 0) {
-        // Handle $filter parameter specially to ensure proper URI encoding
-        const filter = queryParams.$filter;
-        if (filter) {
-          delete queryParams.$filter; // Remove from regular params
-        }
-        
-        // Build query string with proper encoding for regular params
-        const params = new URLSearchParams();
-        for (const [key, value] of Object.entries(queryParams)) {
-          params.append(key, value);
-        }
-        
-        queryString = params.toString();
-        
-        // Add filter parameter separately with proper encoding
-        if (filter) {
-          if (queryString) {
-            queryString += `&$filter=${encodeURIComponent(filter)}`;
-          } else {
-            queryString = `$filter=${encodeURIComponent(filter)}`;
+  const maxRetries = 3;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      console.error(`Making real API call: ${method} ${path}${attempt > 0 ? ` (retry ${attempt}/${maxRetries})` : ''}`);
+
+      // Check if path already contains the full URL (from nextLink)
+      let finalUrl;
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // Path is already a full URL (from pagination nextLink)
+        finalUrl = path;
+        console.error(`Using full URL from nextLink: ${finalUrl}`);
+      } else {
+        // Build URL from path and queryParams
+        // Encode path segments properly
+        const encodedPath = path.split('/')
+          .map(segment => encodeURIComponent(segment))
+          .join('/');
+
+        // Build query string from parameters with special handling for OData filters
+        let queryString = '';
+        if (Object.keys(queryParams).length > 0) {
+          // Handle $filter parameter specially to ensure proper URI encoding
+          const filter = queryParams.$filter;
+          if (filter) {
+            delete queryParams.$filter; // Remove from regular params
           }
-        }
-        
-        if (queryString) {
-          queryString = '?' + queryString;
-        }
-        
-        console.error(`Query string: ${queryString}`);
-      }
-      
-      finalUrl = `${config.GRAPH_API_ENDPOINT}${encodedPath}${queryString}`;
-      console.error(`Full URL: ${finalUrl}`);
-    }
-    
-    return new Promise((resolve, reject) => {
-      const options = {
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      };
-      
-      const req = https.request(finalUrl, options, (res) => {
-        let responseData = '';
-        
-        res.on('data', (chunk) => {
-          responseData += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              responseData = responseData ? responseData : '{}';
-              const jsonResponse = JSON.parse(responseData);
-              resolve(jsonResponse);
-            } catch (error) {
-              reject(new Error(`Error parsing API response: ${error.message}`));
+
+          // Build query string with proper encoding for regular params
+          const params = new URLSearchParams();
+          for (const [key, value] of Object.entries(queryParams)) {
+            params.append(key, value);
+          }
+
+          queryString = params.toString();
+
+          // Add filter parameter separately with proper encoding
+          if (filter) {
+            if (queryString) {
+              queryString += `&$filter=${encodeURIComponent(filter)}`;
+            } else {
+              queryString = `$filter=${encodeURIComponent(filter)}`;
             }
-          } else if (res.statusCode === 401) {
-            // Token expired or invalid
-            reject(new Error('UNAUTHORIZED'));
-          } else {
-            reject(new Error(`API call failed with status ${res.statusCode}: ${responseData}`));
           }
-        });
-      });
-      
-      req.on('error', (error) => {
-        reject(new Error(`Network error during API call: ${error.message}`));
-      });
-      
-      if (data && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
-        req.write(JSON.stringify(data));
+
+          if (queryString) {
+            queryString = '?' + queryString;
+          }
+
+          console.error(`Query string: ${queryString}`);
+        }
+
+        finalUrl = `${config.GRAPH_API_ENDPOINT}${encodedPath}${queryString}`;
+        console.error(`Full URL: ${finalUrl}`);
       }
-      
-      req.end();
-    });
-  } catch (error) {
-    console.error('Error calling Graph API:', error);
-    throw error;
+
+      const response = await new Promise((resolve, reject) => {
+        const options = {
+          method: method,
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        const req = https.request(finalUrl, options, (res) => {
+          let responseData = '';
+
+          res.on('data', (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on('end', () => {
+            resolve({ statusCode: res.statusCode, headers: res.headers, body: responseData });
+          });
+        });
+
+        req.on('error', (error) => {
+          reject(new Error(`Network error during API call: ${error.message}`));
+        });
+
+        if (data && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+          req.write(JSON.stringify(data));
+        }
+
+        req.end();
+      });
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          const body = response.body ? response.body : '{}';
+          return JSON.parse(body);
+        } catch (error) {
+          throw new Error(`Error parsing API response: ${error.message}`);
+        }
+      } else if (response.statusCode === 401) {
+        throw new Error('UNAUTHORIZED');
+      } else if (response.statusCode === 429 && attempt < maxRetries) {
+        const retryAfter = parseInt(response.headers['retry-after'], 10);
+        const delaySeconds = retryAfter > 0 ? retryAfter : Math.pow(2, attempt + 1);
+        console.error(`Throttled (429). Waiting ${delaySeconds}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+        continue;
+      } else {
+        throw new Error(`API call failed with status ${response.statusCode}: ${response.body}`);
+      }
+    } catch (error) {
+      if (attempt < maxRetries && error.message.includes('Network error')) {
+        const delaySeconds = Math.pow(2, attempt + 1);
+        console.error(`Network error. Waiting ${delaySeconds}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+        continue;
+      }
+      console.error('Error calling Graph API:', error);
+      throw error;
+    }
   }
 }
 

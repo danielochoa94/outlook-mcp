@@ -76,14 +76,14 @@ async function handleMoveFolderContents(args) {
       };
     }
 
-    // Move messages in batches
-    const batchSize = 20;
+    // Move messages with limited concurrency
+    const concurrency = 4;
     let successful = 0;
     let failed = 0;
     const errors = [];
 
-    for (let i = 0; i < messages.length; i += batchSize) {
-      const batch = messages.slice(i, i + batchSize);
+    for (let i = 0; i < messages.length; i += concurrency) {
+      const batch = messages.slice(i, i + concurrency);
 
       const results = await Promise.allSettled(
         batch.map(message =>
