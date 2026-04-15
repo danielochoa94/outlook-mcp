@@ -3,6 +3,7 @@
  */
 const handleListFolders = require('./list');
 const handleCreateFolder = require('./create');
+const handleDeleteFolder = require('./delete');
 const handleMoveEmails = require('./move');
 const handleMoveFolder = require('./move-folder');
 const handleMoveFolderContents = require('./move-folder-contents');
@@ -46,6 +47,29 @@ const folderTools = [
       required: ["name"]
     },
     handler: handleCreateFolder
+  },
+  {
+    name: "delete-folder",
+    description: "Deletes a mail folder. By default, folder must be empty. Use force=true to delete with contents (moved to Deleted Items). Use recursive=true for folders with subfolders.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        folder: {
+          type: "string",
+          description: "Name or path of the folder to delete (e.g. 'Inbox/Mercury' or 'Old Stuff')"
+        },
+        recursive: {
+          type: "boolean",
+          description: "If true, delete the folder and all its subfolders. Default: false"
+        },
+        force: {
+          type: "boolean",
+          description: "If true, delete even if folder (or subfolders) contain items. Contents go to Deleted Items. Default: false"
+        }
+      },
+      required: ["folder"]
+    },
+    handler: handleDeleteFolder
   },
   {
     name: "move-emails",
@@ -118,6 +142,7 @@ module.exports = {
   folderTools,
   handleListFolders,
   handleCreateFolder,
+  handleDeleteFolder,
   handleMoveEmails,
   handleMoveFolder,
   handleMoveFolderContents
