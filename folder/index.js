@@ -5,6 +5,7 @@ const handleListFolders = require('./list');
 const handleCreateFolder = require('./create');
 const handleMoveEmails = require('./move');
 const handleMoveFolder = require('./move-folder');
+const handleMoveFolderContents = require('./move-folder-contents');
 
 // Folder management tool definitions
 const folderTools = [
@@ -91,6 +92,25 @@ const folderTools = [
       required: ["folder"]
     },
     handler: handleMoveFolder
+  },
+  {
+    name: "move-folder-contents",
+    description: "Moves ALL emails from one folder to another in bulk. Much faster than moving individual emails — handles pagination and batching internally.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sourceFolder: {
+          type: "string",
+          description: "Name or path of the source folder (e.g. 'Inbox/Mercury' or 'Reference/Finance')"
+        },
+        targetFolder: {
+          type: "string",
+          description: "Name or path of the destination folder (e.g. 'Reference/Finance' or 'Archive')"
+        }
+      },
+      required: ["sourceFolder", "targetFolder"]
+    },
+    handler: handleMoveFolderContents
   }
 ];
 
@@ -99,5 +119,6 @@ module.exports = {
   handleListFolders,
   handleCreateFolder,
   handleMoveEmails,
-  handleMoveFolder
+  handleMoveFolder,
+  handleMoveFolderContents
 };
