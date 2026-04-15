@@ -57,7 +57,6 @@ function createAuthConfig(envPrefix = 'MS_') {
 
   return {
     clientId: process.env[`${envPrefix}CLIENT_ID`] || '',
-    clientSecret: process.env[`${envPrefix}CLIENT_SECRET`] || '',
     redirectUri: process.env[`${envPrefix}REDIRECT_URI`] || 'http://localhost:3333/auth/callback',
     scopes: (process.env[`${envPrefix}SCOPES`] || 'offline_access User.Read Mail.Read').split(' '),
     tenantId,

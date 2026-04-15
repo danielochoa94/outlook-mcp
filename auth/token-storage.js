@@ -10,12 +10,10 @@ class TokenStorage {
 
     // Support both MS_CLIENT_ID (auth server / .env) and OUTLOOK_CLIENT_ID (Claude Desktop config)
     const clientId = process.env.MS_CLIENT_ID || process.env.OUTLOOK_CLIENT_ID;
-    const clientSecret = process.env.MS_CLIENT_SECRET || process.env.OUTLOOK_CLIENT_SECRET;
 
     this.config = {
       tokenStorePath: path.join(process.env.HOME || process.env.USERPROFILE, '.outlook-mcp-tokens.json'),
       clientId,
-      clientSecret,
       redirectUri: process.env.MS_REDIRECT_URI || 'http://localhost:3333/auth/callback',
       scopes: (process.env.MS_SCOPES || 'offline_access User.Read Mail.Read Mail.ReadWrite Mail.Send Calendars.Read Calendars.ReadWrite Files.Read Files.ReadWrite').split(' '),
       tenantId,
@@ -27,8 +25,8 @@ class TokenStorage {
     this._loadPromise = null;
     this._refreshPromise = null;
 
-    if (!this.config.clientId || !this.config.clientSecret) {
-      console.warn("TokenStorage: Client ID or Secret is not configured (checked MS_CLIENT_ID/OUTLOOK_CLIENT_ID). Token refresh will fail.");
+    if (!this.config.clientId) {
+      console.warn("TokenStorage: Client ID is not configured (checked MS_CLIENT_ID/OUTLOOK_CLIENT_ID). Token refresh will fail.");
     }
   }
 
@@ -129,12 +127,12 @@ class TokenStorage {
     }
 
     console.error('Attempting to refresh access token...');
+    // Omit scope — Microsoft reuses the originally consented scopes,
+    // avoiding consent_required errors when configured scopes drift.
     const postData = querystring.stringify({
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
       grant_type: 'refresh_token',
-      refresh_token: this.tokens.refresh_token,
-      scope: this.config.scopes.join(' ')
+      refresh_token: this.tokens.refresh_token
     });
 
     const requestOptions = {
@@ -198,13 +196,12 @@ class TokenStorage {
 
 
   async exchangeCodeForTokens(authCode) {
-    if (!this.config.clientId || !this.config.clientSecret) {
-        throw new Error("Client ID or Client Secret is not configured. Cannot exchange code for tokens.");
+    if (!this.config.clientId) {
+        throw new Error("Client ID is not configured. Cannot exchange code for tokens.");
     }
     console.error('Exchanging authorization code for tokens...');
     const postData = querystring.stringify({
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
       grant_type: 'authorization_code',
       code: authCode,
       redirect_uri: this.config.redirectUri,
