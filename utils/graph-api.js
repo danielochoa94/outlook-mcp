@@ -35,45 +35,18 @@ async function callGraphAPI(accessToken, method, path, data = null, queryParams 
         console.error(`Using full URL from nextLink: ${finalUrl}`);
       } else {
         // Build URL from path and queryParams
-        // Encode path segments properly
-        const encodedPath = path.split('/')
-          .map(segment => encodeURIComponent(segment))
-          .join('/');
-
-        // Build query string from parameters with special handling for OData filters
+        // Build query string manually to preserve OData $ prefixes in keys
         let queryString = '';
         if (Object.keys(queryParams).length > 0) {
-          // Handle $filter parameter specially to ensure proper URI encoding
-          const filter = queryParams.$filter;
-          if (filter) {
-            delete queryParams.$filter; // Remove from regular params
-          }
-
-          // Build query string with proper encoding for regular params
-          const params = new URLSearchParams();
+          const parts = [];
           for (const [key, value] of Object.entries(queryParams)) {
-            params.append(key, value);
+            parts.push(`${key}=${encodeURIComponent(value)}`);
           }
-
-          queryString = params.toString();
-
-          // Add filter parameter separately with proper encoding
-          if (filter) {
-            if (queryString) {
-              queryString += `&$filter=${encodeURIComponent(filter)}`;
-            } else {
-              queryString = `$filter=${encodeURIComponent(filter)}`;
-            }
-          }
-
-          if (queryString) {
-            queryString = '?' + queryString;
-          }
-
+          queryString = '?' + parts.join('&');
           console.error(`Query string: ${queryString}`);
         }
 
-        finalUrl = `${config.GRAPH_API_ENDPOINT}${encodedPath}${queryString}`;
+        finalUrl = `${config.GRAPH_API_ENDPOINT}${path}${queryString}`;
         console.error(`Full URL: ${finalUrl}`);
       }
 

@@ -20,7 +20,7 @@ module.exports = {
   AUTH_CONFIG: {
     clientId: process.env.OUTLOOK_CLIENT_ID || '',
     redirectUri: 'http://localhost:3333/auth/callback',
-    scopes: ['Mail.Read', 'Mail.ReadWrite', 'Mail.Send', 'MailboxSettings.ReadWrite', 'User.Read', 'Calendars.Read', 'Calendars.ReadWrite', 'Files.Read', 'Files.ReadWrite'],
+    scopes: ['Mail.Read', 'Mail.ReadWrite', 'Mail.Send', 'MailboxSettings.ReadWrite', 'User.Read', 'Calendars.Read', 'Calendars.ReadWrite', 'Files.Read', 'Files.ReadWrite', 'Tasks.ReadWrite'],
     tokenStorePath: path.join(homeDir, '.outlook-mcp-tokens.json'),
     authServerUrl: 'http://localhost:3333'
   },
@@ -48,6 +48,10 @@ module.exports = {
   // OneDrive constants
   ONEDRIVE_SELECT_FIELDS: 'id,name,size,lastModifiedDateTime,webUrl,folder,file,parentReference',
   ONEDRIVE_UPLOAD_THRESHOLD: 4 * 1024 * 1024, // 4MB - files larger than this need chunked upload
+
+  // To Do constants
+  TODO_LIST_SELECT_FIELDS: 'id,displayName,isOwner,isShared,wellknownListName',
+  TODO_TASK_SELECT_FIELDS: 'id,title,body,status,importance,createdDateTime,lastModifiedDateTime,dueDateTime,completedDateTime,linkedResources',
 
   // Power Automate / Flow constants
   FLOW_API_ENDPOINT: 'https://api.flow.microsoft.com',
