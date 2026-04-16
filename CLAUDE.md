@@ -17,8 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a modular MCP (Model Context Protocol) server that provides Claude with access to Microsoft 365 services:
 - **Outlook** - Email, calendar, folders, rules
 - **To Do** - Task lists, tasks (GTD workflows)
-- **OneDrive** - Files, folders, sharing
-- **Power Automate** - Flows, environments, runs
+- **SharePoint** - Sites, document libraries, files, lists
 
 ### Core Structure
 - `index.js` - Main entry point that combines all module tools and handles MCP protocol
@@ -27,42 +26,35 @@ This is a modular MCP (Model Context Protocol) server that provides Claude with 
 
 ### Modules
 Each module exports tools and handlers:
-- `auth/` - OAuth 2.0 authentication with token management (Graph + Flow)
+- `auth/` - OAuth 2.0 authentication with token management
 - `calendar/` - Calendar operations (list, create, accept, decline, delete events)
 - `email/` - Email management (list, search, read, send, mark as read)
 - `folder/` - Folder operations (list, create, move)
 - `rules/` - Email rules management
 - `todo/` - Microsoft To Do operations (list/create/delete lists, list/create/update/complete/delete tasks)
-- `onedrive/` - OneDrive operations (list, search, download, upload, share, folder ops)
-- `power-automate/` - Flow operations (list environments, list/run/toggle flows, run history)
+- `sharepoint/` - SharePoint operations (list sites, document libraries, files, download, upload, lists, list items)
 - `utils/` - Shared utilities including Graph API client and OData helpers
 
 ### Key Components
-- **Token Management**: Tokens stored in `~/.outlook-mcp-tokens.json` (both Graph and Flow tokens)
-- **Graph API Client**: `utils/graph-api.js` handles Microsoft Graph API calls (Outlook, OneDrive)
-- **Flow API Client**: `power-automate/flow-api.js` handles Power Automate API calls
+- **Token Management**: Tokens stored in `~/.outlook-mcp-tokens.json`
+- **Graph API Client**: `utils/graph-api.js` handles Microsoft Graph API calls
 - **Test Mode**: Mock data responses when `USE_TEST_MODE=true`
 - **Modular Tools**: Each module exports tools array that gets combined in main server
 
 ## Authentication
 
-### Graph API (Outlook + OneDrive)
+### Graph API
 1. Azure app registration required with permissions:
    - `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`
    - `Calendars.Read`, `Calendars.ReadWrite`
    - `Files.Read`, `Files.ReadWrite`
    - `Tasks.ReadWrite`
+   - `Sites.ReadWrite.All`
    - `User.Read`, `offline_access`
 2. Start auth server: `npm run auth-server`
 3. Use authenticate tool to get OAuth URL
 4. Complete browser authentication
 5. Tokens automatically stored and refreshed
-
-### Power Automate (Optional)
-- Requires separate Flow API scope: `https://service.flow.microsoft.com//.default`
-- Flow tokens stored alongside Graph tokens in same token file
-- Only solution-aware flows accessible via API
-- Only manual trigger flows can be triggered
 
 ## Configuration
 
@@ -73,8 +65,7 @@ Each module exports tools and handlers:
 
 ### Config Constants
 - `GRAPH_API_ENDPOINT`: `https://graph.microsoft.com/v1.0/`
-- `FLOW_API_ENDPOINT`: `https://api.flow.microsoft.com`
-- `ONEDRIVE_UPLOAD_THRESHOLD`: 4MB (files larger need chunked upload)
+- `ONEDRIVE_UPLOAD_THRESHOLD`: 4MB (files larger need chunked upload for SharePoint/OneDrive)
 - Default page size: 25, max results: 50
 
 ### Common Setup Issues
@@ -87,12 +78,10 @@ Each module exports tools and handlers:
 
 Set `USE_TEST_MODE=true` to use mock data instead of real API calls. Mock responses defined in:
 - `utils/mock-data.js` - Graph API mocks
-- `power-automate/flow-api.js` - Flow API mocks (inline)
 
 ## Error Handling
 
 - Graph API auth failures: "UNAUTHORIZED" error
-- Flow API auth failures: "FLOW_UNAUTHORIZED" error
 - API errors include status codes and response details
 - Token expiration triggers re-authentication flow
 - Empty API responses handled gracefully
