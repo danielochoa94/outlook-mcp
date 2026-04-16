@@ -3,12 +3,14 @@
  */
 const handleListTodoLists = require('./list-lists');
 const handleCreateTodoList = require('./create-list');
+const handleUpdateTodoList = require('./update-list');
 const handleDeleteTodoList = require('./delete-list');
 const handleListTasks = require('./list-tasks');
 const handleCreateTask = require('./create-task');
 const handleUpdateTask = require('./update-task');
 const handleCompleteTask = require('./complete-task');
 const handleDeleteTask = require('./delete-task');
+const handleMoveTask = require('./move-task');
 
 // To Do tool definitions
 const todoTools = [
@@ -36,6 +38,25 @@ const todoTools = [
       required: ["displayName"]
     },
     handler: handleCreateTodoList
+  },
+  {
+    name: "update-todo-list",
+    description: "Renames a Microsoft To Do task list",
+    inputSchema: {
+      type: "object",
+      properties: {
+        listId: {
+          type: "string",
+          description: "The ID of the task list to update"
+        },
+        displayName: {
+          type: "string",
+          description: "New name for the task list"
+        }
+      },
+      required: ["listId", "displayName"]
+    },
+    handler: handleUpdateTodoList
   },
   {
     name: "delete-todo-list",
@@ -186,6 +207,29 @@ const todoTools = [
       required: ["listId", "taskId"]
     },
     handler: handleDeleteTask
+  },
+  {
+    name: "move-task",
+    description: "Moves a task from one To Do list to another. Note: Graph API has no native move, so this creates the task in the target list and deletes it from the source.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sourceListId: {
+          type: "string",
+          description: "The ID of the list to move the task from"
+        },
+        targetListId: {
+          type: "string",
+          description: "The ID of the list to move the task to"
+        },
+        taskId: {
+          type: "string",
+          description: "The ID of the task to move"
+        }
+      },
+      required: ["sourceListId", "targetListId", "taskId"]
+    },
+    handler: handleMoveTask
   }
 ];
 
@@ -193,10 +237,12 @@ module.exports = {
   todoTools,
   handleListTodoLists,
   handleCreateTodoList,
+  handleUpdateTodoList,
   handleDeleteTodoList,
   handleListTasks,
   handleCreateTask,
   handleUpdateTask,
   handleCompleteTask,
-  handleDeleteTask
+  handleDeleteTask,
+  handleMoveTask
 };
