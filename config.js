@@ -20,7 +20,7 @@ module.exports = {
   AUTH_CONFIG: {
     clientId: process.env.OUTLOOK_CLIENT_ID || '',
     redirectUri: 'http://localhost:3333/auth/callback',
-    scopes: ['Mail.Read', 'Mail.ReadWrite', 'Mail.Send', 'MailboxSettings.ReadWrite', 'User.Read', 'Calendars.Read', 'Calendars.ReadWrite', 'Files.Read', 'Files.ReadWrite', 'Tasks.ReadWrite'],
+    scopes: ['Mail.Read', 'Mail.ReadWrite', 'Mail.Send', 'MailboxSettings.ReadWrite', 'User.Read', 'Calendars.Read', 'Calendars.ReadWrite', 'Files.Read', 'Files.ReadWrite', 'Tasks.ReadWrite', 'Sites.ReadWrite.All'],
     tokenStorePath: path.join(homeDir, '.outlook-mcp-tokens.json'),
     authServerUrl: 'http://localhost:3333'
   },
@@ -53,7 +53,8 @@ module.exports = {
   TODO_LIST_SELECT_FIELDS: 'id,displayName,isOwner,isShared,wellknownListName',
   TODO_TASK_SELECT_FIELDS: 'id,title,body,status,importance,createdDateTime,lastModifiedDateTime,dueDateTime,completedDateTime,linkedResources',
 
-  // Power Automate / Flow constants
-  FLOW_API_ENDPOINT: 'https://api.flow.microsoft.com',
-  FLOW_SCOPE: 'https://service.flow.microsoft.com/.default',
+  // SharePoint constants
+  SHAREPOINT_SITE_SELECT_FIELDS: 'id,displayName,description,webUrl,createdDateTime,lastModifiedDateTime',
+  SHAREPOINT_DRIVE_SELECT_FIELDS: 'id,name,description,webUrl,driveType,createdDateTime,lastModifiedDateTime',
+  SHAREPOINT_ITEM_SELECT_FIELDS: 'id,name,size,lastModifiedDateTime,webUrl,folder,file,parentReference,createdBy,lastModifiedBy',
 };
