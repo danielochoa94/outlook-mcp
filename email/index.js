@@ -46,7 +46,7 @@ const emailTools = [
         },
         folder: {
           type: "string",
-          description: "Email folder to search in (default: 'inbox')"
+          description: "Email folder to search in. Omit to search across all folders."
         },
         from: {
           type: "string",

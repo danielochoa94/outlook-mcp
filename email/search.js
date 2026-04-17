@@ -12,7 +12,7 @@ const { resolveFolderPath } = require('./folder-utils');
  * @returns {object} - MCP response
  */
 async function handleSearchEmails(args) {
-  const folder = args.folder || "inbox";
+  const folder = args.folder;
   const requestedCount = args.count || 10;
   const skip = args.skip || 0;
   const query = args.query || '';
@@ -21,14 +21,16 @@ async function handleSearchEmails(args) {
   const subject = args.subject || '';
   const hasAttachments = args.hasAttachments;
   const unreadOnly = args.unreadOnly;
-  
+
   try {
     // Get access token
     const accessToken = await ensureAuthenticated();
-    
-    // Resolve the folder path
-    const endpoint = await resolveFolderPath(accessToken, folder);
-    console.error(`Using endpoint: ${endpoint} for folder: ${folder}`);
+
+    // Search across all folders when no folder is specified; otherwise scope to the requested folder
+    const endpoint = folder
+      ? await resolveFolderPath(accessToken, folder)
+      : "me/messages";
+    console.error(`Using endpoint: ${endpoint} for folder: ${folder || '(all folders)'}`);
     
     // Execute progressive search with pagination
     const response = await progressiveSearch(
@@ -139,59 +141,38 @@ async function progressiveSearch(endpoint, accessToken, searchTerms, filterTerms
     }
   }
   
-  // 3. Try with only boolean filters
-  if (filterTerms.hasAttachments === true || filterTerms.unreadOnly === true) {
-    try {
-      console.error("Attempting search with only boolean filters");
-      searchAttempts.push("boolean-filters-only");
-      
-      const filterOnlyParams = {
-        $top: Math.min(50, maxCount),
-        $select: config.EMAIL_SELECT_FIELDS,
-        $orderby: 'receivedDateTime desc'
-      };
+  // 3. Boolean-filters-only path: run only when the caller supplied no search terms
+  //    and at least one boolean filter. Otherwise return empty — the user's search
+  //    terms genuinely matched nothing, and falling back to recent emails would be misleading.
+  const hasSearchTerm = Boolean(
+    searchTerms.query || searchTerms.from || searchTerms.to || searchTerms.subject
+  );
+  const hasBooleanFilter = filterTerms.hasAttachments === true || filterTerms.unreadOnly === true;
 
-      if (skip > 0) {
-        filterOnlyParams.$skip = skip;
-      }
-      
-      // Add the boolean filters
-      addBooleanFilters(filterOnlyParams, filterTerms);
-      
-      const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, filterOnlyParams, maxCount);
-      console.error(`Boolean filter search found ${response.value?.length || 0} results`);
-      return response;
-    } catch (error) {
-      console.error(`Boolean filter search failed: ${error.message}`);
+  if (!hasSearchTerm && hasBooleanFilter) {
+    console.error("Attempting search with only boolean filters");
+    searchAttempts.push("boolean-filters-only");
+
+    const filterOnlyParams = {
+      $top: Math.min(50, maxCount),
+      $select: config.EMAIL_SELECT_FIELDS,
+      $orderby: 'receivedDateTime desc'
+    };
+
+    if (skip > 0) {
+      filterOnlyParams.$skip = skip;
     }
-  }
-  
-  // 4. Final fallback: just get recent emails with pagination
-  console.error("All search strategies failed, falling back to recent emails");
-  searchAttempts.push("recent-emails");
-  
-  const basicParams = {
-    $top: Math.min(50, maxCount),
-    $select: config.EMAIL_SELECT_FIELDS,
-    $orderby: 'receivedDateTime desc'
-  };
 
-  if (skip > 0) {
-    basicParams.$skip = skip;
+    addBooleanFilters(filterOnlyParams, filterTerms);
+
+    const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, filterOnlyParams, maxCount);
+    console.error(`Boolean filter search found ${response.value?.length || 0} results`);
+    return response;
   }
-  
-  const response = await callGraphAPIPaginated(accessToken, 'GET', endpoint, basicParams, maxCount);
-  console.error(`Fallback to recent emails found ${response.value?.length || 0} results`);
-  
-  // Add a note to the response about the search attempts
-  response._searchInfo = {
-    attemptsCount: searchAttempts.length,
-    strategies: searchAttempts,
-    originalTerms: searchTerms,
-    filterTerms: filterTerms
-  };
-  
-  return response;
+
+  // No fallback to recent emails: if search terms matched nothing, return empty.
+  console.error(`All search strategies returned empty; returning empty result (attempts: ${searchAttempts.join(', ')})`);
+  return { value: [] };
 }
 
 /**
@@ -312,16 +293,10 @@ function formatSearchResults(response, skip = 0) {
     return `${displayIndex}. ${readStatus}${date} - From: ${sender.name} (${sender.address})\nSubject: ${email.subject}\nID: ${email.id}\n`;
   }).join("\n");
   
-  // Add search strategy info if available
-  let additionalInfo = '';
-  if (response._searchInfo) {
-    additionalInfo = `\n(Search used ${response._searchInfo.strategies[response._searchInfo.strategies.length - 1]} strategy)`;
-  }
-  
   return {
-    content: [{ 
-      type: "text", 
-      text: `Found ${response.value.length} emails matching your search criteria:${additionalInfo}\n\n${emailList}`
+    content: [{
+      type: "text",
+      text: `Found ${response.value.length} emails matching your search criteria:\n\n${emailList}`
     }]
   };
 }
