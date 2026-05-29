@@ -19,6 +19,7 @@ async function handleCreateRule(args) {
     hasAttachments,
     moveToFolder,
     markAsRead,
+    forwardTo,
     isEnabled = true,
     sequence
   } = args;
@@ -44,22 +45,22 @@ async function handleCreateRule(args) {
   
   // Validate that at least one condition or action is specified
   const hasCondition = fromAddresses || containsSubject || hasAttachments === true;
-  const hasAction = moveToFolder || markAsRead === true;
-  
+  const hasAction = moveToFolder || markAsRead === true || forwardTo;
+
   if (!hasCondition) {
     return {
-      content: [{ 
-        type: "text", 
+      content: [{
+        type: "text",
         text: "At least one condition is required. Specify fromAddresses, containsSubject, or hasAttachments."
       }]
     };
   }
-  
+
   if (!hasAction) {
     return {
-      content: [{ 
-        type: "text", 
-        text: "At least one action is required. Specify moveToFolder or markAsRead."
+      content: [{
+        type: "text",
+        text: "At least one action is required. Specify moveToFolder, markAsRead, or forwardTo."
       }]
     };
   }
@@ -76,6 +77,7 @@ async function handleCreateRule(args) {
       hasAttachments,
       moveToFolder,
       markAsRead,
+      forwardTo,
       isEnabled,
       sequence
     });
@@ -127,6 +129,7 @@ async function createInboxRule(accessToken, ruleOptions) {
       hasAttachments,
       moveToFolder,
       markAsRead,
+      forwardTo,
       isEnabled,
       sequence
     } = ruleOptions;
@@ -217,6 +220,21 @@ async function createInboxRule(accessToken, ruleOptions) {
     
     if (markAsRead === true) {
       rule.actions.markAsRead = true;
+    }
+
+    if (forwardTo) {
+      const forwardRecipients = forwardTo.split(',')
+        .map(email => email.trim())
+        .filter(email => email)
+        .map(email => ({
+          emailAddress: {
+            address: email
+          }
+        }));
+
+      if (forwardRecipients.length > 0) {
+        rule.actions.forwardTo = forwardRecipients;
+      }
     }
     
     // Create the rule

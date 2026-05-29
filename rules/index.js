@@ -192,8 +192,12 @@ const rulesTools = [
           description: "Name of the folder to move matching emails to"
         },
         markAsRead: {
-          type: "boolean", 
+          type: "boolean",
           description: "Whether to mark matching emails as read"
+        },
+        forwardTo: {
+          type: "string",
+          description: "Comma-separated list of email addresses to forward matching emails to"
         },
         isEnabled: {
           type: "boolean",
