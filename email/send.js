@@ -4,6 +4,7 @@
 const config = require('../config');
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { formatRecipients, describeRecipients } = require('./recipient-utils');
 
 /**
  * Send email handler
@@ -45,34 +46,10 @@ async function handleSendEmail(args) {
     // Get access token
     const accessToken = await ensureAuthenticated();
     
-    // Format recipients
-    const toRecipients = to.split(',').map(email => {
-      email = email.trim();
-      return {
-        emailAddress: {
-          address: email
-        }
-      };
-    });
-    
-    const ccRecipients = cc ? cc.split(',').map(email => {
-      email = email.trim();
-      return {
-        emailAddress: {
-          address: email
-        }
-      };
-    }) : [];
-    
-    const bccRecipients = bcc ? bcc.split(',').map(email => {
-      email = email.trim();
-      return {
-        emailAddress: {
-          address: email
-        }
-      };
-    }) : [];
-    
+    const toRecipients = formatRecipients(to);
+    const ccRecipients = formatRecipients(cc);
+    const bccRecipients = formatRecipients(bcc);
+
     // Determine content type: explicit isHtml param takes precedence, otherwise auto-detect
     const contentType = isHtml === true ? 'html' :
                         isHtml === false ? 'text' :
@@ -100,7 +77,7 @@ async function handleSendEmail(args) {
     return {
       content: [{ 
         type: "text", 
-        text: `Email sent successfully!\n\nSubject: ${subject}\nRecipients: ${toRecipients.length}${ccRecipients.length > 0 ? ` + ${ccRecipients.length} CC` : ''}${bccRecipients.length > 0 ? ` + ${bccRecipients.length} BCC` : ''}\nMessage Length: ${body.length} characters`
+        text: `Email sent successfully!\n\nSubject: ${subject}\nRecipients: ${describeRecipients(toRecipients, ccRecipients, bccRecipients)}\nMessage Length: ${body.length} characters`
       }]
     };
   } catch (error) {

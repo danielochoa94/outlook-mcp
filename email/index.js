@@ -8,6 +8,11 @@ const handleSendEmail = require('./send');
 const handleDraftEmail = require('./draft');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
+const {
+  handleScheduleEmail,
+  handleListScheduledEmails,
+  handleCancelScheduledEmail
+} = require('./schedule');
 
 // Email tool definitions
 const emailTools = [
@@ -145,6 +150,80 @@ const emailTools = [
     handler: handleSendEmail
   },
   {
+    name: "schedule-email",
+    description: "Composes an email and schedules it to be sent at a future time. The message waits in Drafts and is delivered by Exchange at the requested time, with no client running.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        to: {
+          type: "string",
+          description: "Comma-separated list of recipient email addresses"
+        },
+        cc: {
+          type: "string",
+          description: "Comma-separated list of CC recipient email addresses"
+        },
+        bcc: {
+          type: "string",
+          description: "Comma-separated list of BCC recipient email addresses"
+        },
+        subject: {
+          type: "string",
+          description: "Email subject"
+        },
+        body: {
+          type: "string",
+          description: "Email body content (plain text or HTML)"
+        },
+        sendAt: {
+          type: "string",
+          description: "When to send, as ISO 8601 with an explicit timezone (e.g. '2025-01-31T09:00:00-05:00' or '2025-01-31T14:00:00Z'). Must be in the future."
+        },
+        isHtml: {
+          type: "boolean",
+          description: "Set to true to send as HTML, false for plain text. If not specified, auto-detects based on <html> tag presence."
+        },
+        importance: {
+          type: "string",
+          description: "Email importance (normal, high, low)",
+          enum: ["normal", "high", "low"]
+        }
+      },
+      required: ["to", "subject", "body", "sendAt"]
+    },
+    handler: handleScheduleEmail
+  },
+  {
+    name: "list-scheduled-emails",
+    description: "Lists emails that are queued for a future send time, with their IDs and send times",
+    inputSchema: {
+      type: "object",
+      properties: {
+        count: {
+          type: "number",
+          description: "Maximum number of messages to inspect per folder (default: 25, max: 50)"
+        }
+      },
+      required: []
+    },
+    handler: handleListScheduledEmails
+  },
+  {
+    name: "cancel-scheduled-email",
+    description: "Cancels a scheduled email before it is sent by deleting the queued message (moves it to Deleted Items)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the scheduled message, from 'list-scheduled-emails'"
+        }
+      },
+      required: ["id"]
+    },
+    handler: handleCancelScheduledEmail
+  },
+  {
     name: "draft-email",
     description: "Creates and saves an email draft in Outlook",
     inputSchema: {
@@ -227,6 +306,9 @@ module.exports = {
   handleReadEmail,
   handleSendEmail,
   handleDraftEmail,
+  handleScheduleEmail,
+  handleListScheduledEmails,
+  handleCancelScheduledEmail,
   handleMarkAsRead,
   handleDeleteEmail
 };
