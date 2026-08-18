@@ -3,6 +3,7 @@
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
+const { formatRecipients, describeRecipients } = require('./recipient-utils');
 
 /**
  * Draft email handler
@@ -18,24 +19,9 @@ async function handleDraftEmail(args) {
     // Get access token
     const accessToken = await ensureAuthenticated();
 
-    // Format recipients only when provided
-    const toRecipients = to
-      ? to.split(',').map(email => ({
-          emailAddress: { address: email.trim() }
-        })).filter(r => r.emailAddress.address)
-      : [];
-
-    const ccRecipients = cc
-      ? cc.split(',').map(email => ({
-          emailAddress: { address: email.trim() }
-        })).filter(r => r.emailAddress.address)
-      : [];
-
-    const bccRecipients = bcc
-      ? bcc.split(',').map(email => ({
-          emailAddress: { address: email.trim() }
-        })).filter(r => r.emailAddress.address)
-      : [];
+    const toRecipients = formatRecipients(to);
+    const ccRecipients = formatRecipients(cc);
+    const bccRecipients = formatRecipients(bcc);
 
     // Create message payload for draft creation
     const messageObject = {
@@ -56,7 +42,7 @@ async function handleDraftEmail(args) {
     return {
       content: [{
         type: "text",
-        text: `Draft created successfully!\n\nDraft ID: ${draft.id}\nSubject: ${draft.subject || '(no subject)'}\nRecipients: ${toRecipients.length}${ccRecipients.length > 0 ? ` + ${ccRecipients.length} CC` : ''}${bccRecipients.length > 0 ? ` + ${bccRecipients.length} BCC` : ''}`
+        text: `Draft created successfully!\n\nDraft ID: ${draft.id}\nSubject: ${draft.subject || '(no subject)'}\nRecipients: ${describeRecipients(toRecipients, ccRecipients, bccRecipients)}`
       }]
     };
   } catch (error) {

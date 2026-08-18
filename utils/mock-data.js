@@ -133,6 +133,19 @@ function simulateGraphAPIResponse(method, path, data, queryParams) {
   } else if (method === 'POST' && path.includes('sendMail')) {
     // Simulate a successful email send
     return {};
+  } else if (method === 'POST' && /messages\/[^/]+\/send$/.test(path)) {
+    // Simulate sending an existing draft
+    return {};
+  } else if (method === 'POST' && path === 'me/messages') {
+    // Simulate draft creation
+    return {
+      id: "simulated-draft-id",
+      subject: data && data.subject,
+      singleValueExtendedProperties: (data && data.singleValueExtendedProperties) || []
+    };
+  } else if (method === 'DELETE' && path.startsWith('me/messages/')) {
+    // Simulate deleting a message
+    return {};
   }
   
   // If we get here, we don't have a simulation for this endpoint
