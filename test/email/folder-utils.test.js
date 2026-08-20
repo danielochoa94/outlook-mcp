@@ -55,6 +55,24 @@ describe('resolveFolderPath', () => {
       expect(result3).toBe(WELL_KNOWN_FOLDERS['sent']);
       expect(callGraphAPI).not.toHaveBeenCalled();
     });
+
+    test('should resolve the aliases Graph and Outlook use for the same folders', async () => {
+      const aliases = {
+        sentitems: 'sent',
+        'sent items': 'sent',
+        deleteditems: 'deleted',
+        'deleted items': 'deleted',
+        trash: 'deleted',
+        junkemail: 'junk',
+        'junk email': 'junk'
+      };
+
+      for (const [alias, canonical] of Object.entries(aliases)) {
+        expect(await resolveFolderPath(mockAccessToken, alias)).toBe(WELL_KNOWN_FOLDERS[canonical]);
+      }
+
+      expect(callGraphAPI).not.toHaveBeenCalled();
+    });
   });
 
   describe('custom folders', () => {

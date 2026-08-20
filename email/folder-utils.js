@@ -11,13 +11,24 @@ const folderCache = {};
 
 /**
  * Well-known folder names and their endpoints
+ *
+ * Keyed by every name a caller plausibly reaches for: our own short names, the IDs Graph documents,
+ * and the display names Outlook shows. A miss here is not just a slower path - it falls through to a
+ * full folder-tree walk that cannot match these, so "sentitems" would fail outright.
  */
 const WELL_KNOWN_FOLDERS = {
   inbox: "me/mailFolders/inbox/messages",
   drafts: "me/mailFolders/drafts/messages",
   sent: "me/mailFolders/sentItems/messages",
+  sentitems: "me/mailFolders/sentItems/messages",
+  "sent items": "me/mailFolders/sentItems/messages",
   deleted: "me/mailFolders/deletedItems/messages",
+  deleteditems: "me/mailFolders/deletedItems/messages",
+  "deleted items": "me/mailFolders/deletedItems/messages",
+  trash: "me/mailFolders/deletedItems/messages",
   junk: "me/mailFolders/junkemail/messages",
+  junkemail: "me/mailFolders/junkemail/messages",
+  "junk email": "me/mailFolders/junkemail/messages",
   archive: "me/mailFolders/archive/messages",
 };
 
