@@ -14,7 +14,7 @@ const { handleListScheduledEmails, handleCancelScheduledEmail } = require('./sch
 const emailTools = [
   {
     name: "list-emails",
-    description: "Lists recent emails from your inbox",
+    description: "Lists recent emails from a mail folder, most recent first. Defaults to the inbox; pass folder: 'sent' to find a message you sent, for example to get its ID to reply to.",
     inputSchema: {
       type: "object",
       properties: {
@@ -155,7 +155,7 @@ const emailTools = [
   },
   {
     name: "reply-email",
-    description: "Replies to an existing email, keeping it in the same Outlook conversation thread. Sends immediately by default; use sendAt to schedule it or saveAsDraft to leave it in Drafts.",
+    description: "Replies to an existing email, keeping it in the same Outlook conversation thread. Sends immediately by default; use sendAt to schedule it or saveAsDraft to leave it in Drafts. Replying to a message you sent addresses the people you sent it to, so a follow-up nudge lands on the thread rather than back in your own inbox.",
     inputSchema: {
       type: "object",
       properties: {
@@ -173,7 +173,7 @@ const emailTools = [
         },
         to: {
           type: "string",
-          description: "Comma-separated addresses to add to the recipients Outlook already fills in"
+          description: "Comma-separated addresses to add to the recipients the reply is already addressed to"
         },
         cc: {
           type: "string",

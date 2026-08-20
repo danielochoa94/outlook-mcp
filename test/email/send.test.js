@@ -39,6 +39,15 @@ describe('handleSendEmail', () => {
     expect(textOf(result)).toMatch(/Email sent successfully/);
   });
 
+  test('points at sent items so a follow-up can be threaded onto the message', async () => {
+    callGraphAPI.mockResolvedValue({});
+
+    const result = await handleSendEmail(BASE);
+
+    expect(textOf(result)).toMatch(/'list-emails' \(folder: 'sent'\)/);
+    expect(textOf(result)).toMatch(/'reply-email'/);
+  });
+
   test('auto-detects html bodies', async () => {
     callGraphAPI.mockResolvedValueOnce({});
 

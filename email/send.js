@@ -78,7 +78,11 @@ async function handleSendEmail(args) {
     if (!sendTime && !saveAsDraft) {
       await callGraphAPI(accessToken, 'POST', 'me/sendMail', { message, saveToSentItems });
 
-      return textResponse(`Email sent successfully!\n\n${summary}\nMessage Length: ${body.length} characters`);
+      // sendMail returns no id, so point the caller at the only way to thread a follow-up onto this.
+      return textResponse(
+        `Email sent successfully!\n\n${summary}\nMessage Length: ${body.length} characters\n\n` +
+        `To follow up on this thread later, find it with 'list-emails' (folder: 'sent') and pass its ID to 'reply-email'.`
+      );
     }
 
     if (sendTime) {
@@ -104,7 +108,8 @@ async function handleSendEmail(args) {
     return textResponse(
       `Email scheduled successfully!\n\n${summary}\n` +
       `Sends at: ${sendTime.date.toISOString()} (UTC)\nMessage ID: ${draft.id}\n\n` +
-      `It stays in Drafts until then. Use 'cancel-scheduled-email' with that ID to stop it.`
+      `It stays in Drafts until then. Use 'cancel-scheduled-email' with that ID to stop it; once sent, the ` +
+      `copy in Sent Items has a different ID.`
     );
   } catch (error) {
     if (error.message === 'Authentication required') {

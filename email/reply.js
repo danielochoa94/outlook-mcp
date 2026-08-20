@@ -250,6 +250,56 @@ function mergeRecipients(existing = [], added = []) {
 }
 
 /**
+ * Addresses the mailbox owner answers to, lower-cased
+ * @param {object|null} owner - Graph user resource, or null when it could not be fetched
+ * @returns {Array<string>} - Empty when the owner is unknown, which disables sent-item substitution
+ */
+function ownerAddresses(owner) {
+  return [(owner || {}).mail, (owner || {}).userPrincipalName]
+    .filter(Boolean)
+    .map(address => address.toLowerCase());
+}
+
+function addressed(recipients) {
+  return (recipients || []).filter(r => r && r.emailAddress && r.emailAddress.address);
+}
+
+/**
+ * The recipients a reply should start from
+ *
+ * Graph addresses a reply to the original's From, which on a message you sent is yourself. Desktop
+ * Outlook instead answers the people you sent it to, which is what puts a follow-up on the thread
+ * rather than in your own inbox. Anything we cannot establish - unknown mailbox owner, a sent message
+ * with no recipients - falls back to what Graph prefilled.
+ * @param {string} action - Graph draft-creating action name
+ * @param {object} draft - The draft Graph created
+ * @param {object|null} original - The message being answered
+ * @param {Array<string>} owner - Lower-cased addresses belonging to the mailbox
+ * @returns {object} - { to, cc, substituted }
+ */
+function replyBaseRecipients(action, draft, original, owner) {
+  const to = draft.toRecipients || [];
+  const cc = draft.ccRecipients || [];
+  const from = original && original.from && original.from.emailAddress;
+
+  if (action === 'createForward' || !from || !from.address || !owner.includes(from.address.toLowerCase())) {
+    return { to, cc, substituted: false };
+  }
+
+  const sentTo = addressed(original.toRecipients);
+
+  if (sentTo.length === 0) {
+    return { to, cc, substituted: false };
+  }
+
+  return {
+    to: sentTo,
+    cc: action === 'createReplyAll' ? addressed(original.ccRecipients) : [],
+    substituted: true
+  };
+}
+
+/**
  * Shared implementation for reply, reply-all and forward
  * @param {string} action - Graph draft-creating action name
  * @param {object} args - Tool arguments
@@ -284,11 +334,15 @@ async function createAndDeliver(action, args) {
     const accessToken = await ensureAuthenticated();
 
     // The draft never carries the original's send time, so fetch it in parallel to restamp the divider.
-    const [draft, original] = await Promise.all([
+    // Forwards address whoever the caller named, so they never need the mailbox owner.
+    const [draft, original, owner] = await Promise.all([
       callGraphAPI(accessToken, 'POST', `me/messages/${id}/${action}`),
       callGraphAPI(accessToken, 'GET', `me/messages/${id}`, null, {
         $select: 'from,toRecipients,ccRecipients,subject,receivedDateTime,sentDateTime'
-      }).catch(() => null)
+      }).catch(() => null),
+      action === 'createForward'
+        ? null
+        : callGraphAPI(accessToken, 'GET', 'me', null, { $select: 'mail,userPrincipalName' }).catch(() => null)
     ]);
 
     if (!draft || !draft.id) {
@@ -302,12 +356,16 @@ async function createAndDeliver(action, args) {
 
     const update = { body: composed };
 
-    const toRecipients = mergeRecipients(draft.toRecipients, addedTo);
-    const ccRecipients = mergeRecipients(draft.ccRecipients, formatRecipients(cc));
+    const base = replyBaseRecipients(action, draft, original, ownerAddresses(owner));
+
+    const toRecipients = mergeRecipients(base.to, addedTo);
+    const ccRecipients = mergeRecipients(base.cc, formatRecipients(cc));
     const bccRecipients = mergeRecipients(draft.bccRecipients, formatRecipients(bcc));
 
-    if (toRecipients.length > (draft.toRecipients || []).length) update.toRecipients = toRecipients;
-    if (ccRecipients.length > (draft.ccRecipients || []).length) update.ccRecipients = ccRecipients;
+    if (base.substituted || toRecipients.length > base.to.length) update.toRecipients = toRecipients;
+    if ((base.substituted && ccRecipients.length > 0) || ccRecipients.length > base.cc.length) {
+      update.ccRecipients = ccRecipients;
+    }
     if (bccRecipients.length > (draft.bccRecipients || []).length) update.bccRecipients = bccRecipients;
     if (importance) update.importance = importance;
 
@@ -369,5 +427,6 @@ module.exports = {
   formatSentDate,
   buildDivider,
   replaceDivider,
-  mergeRecipients
+  mergeRecipients,
+  replyBaseRecipients
 };
