@@ -35,6 +35,8 @@ The server currently exposes 45 tools.
 | `search-emails` | Search messages by text, sender, recipient, subject, attachment status, or read status. |
 | `read-email` | Read a message with sanitized plain-text content. |
 | `send-email` | Send a plain-text or HTML message with optional CC, BCC, and importance. |
+| `reply-email` | Reply (or reply-all) in the original conversation thread; send now, schedule, or save as a draft. |
+| `forward-email` | Forward a message in its thread; send now, schedule, or save as a draft. |
 | `schedule-email` | Schedule a message for future delivery by Exchange. |
 | `list-scheduled-emails` | List messages awaiting a future delivery time. |
 | `cancel-scheduled-email` | Cancel a scheduled message by moving it to Deleted Items. |

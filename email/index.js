@@ -6,6 +6,7 @@ const handleSearchEmails = require('./search');
 const handleReadEmail = require('./read');
 const handleSendEmail = require('./send');
 const handleDraftEmail = require('./draft');
+const { handleReplyEmail, handleForwardEmail } = require('./reply');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
 const {
@@ -148,6 +149,106 @@ const emailTools = [
       required: ["to", "subject", "body"]
     },
     handler: handleSendEmail
+  },
+  {
+    name: "reply-email",
+    description: "Replies to an existing email, keeping it in the same Outlook conversation thread. Sends immediately by default; use sendAt to schedule it or saveAsDraft to leave it in Drafts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to reply to"
+        },
+        body: {
+          type: "string",
+          description: "Your reply text, placed above the quoted original"
+        },
+        replyAll: {
+          type: "boolean",
+          description: "Reply to every recipient of the original instead of just the sender. Default: false"
+        },
+        to: {
+          type: "string",
+          description: "Comma-separated addresses to add to the recipients Outlook already fills in"
+        },
+        cc: {
+          type: "string",
+          description: "Comma-separated addresses to add to CC"
+        },
+        bcc: {
+          type: "string",
+          description: "Comma-separated addresses to add to BCC"
+        },
+        isHtml: {
+          type: "boolean",
+          description: "Set to true to treat body as HTML, false for plain text. If not specified, auto-detects based on <html> tag presence."
+        },
+        importance: {
+          type: "string",
+          description: "Email importance (normal, high, low)",
+          enum: ["normal", "high", "low"]
+        },
+        sendAt: {
+          type: "string",
+          description: "Schedule the reply instead of sending now, as ISO 8601 with an explicit timezone (e.g. '2025-01-31T09:00:00-05:00'). Must be in the future. Cancel with 'cancel-scheduled-email'."
+        },
+        saveAsDraft: {
+          type: "boolean",
+          description: "Save the reply to Drafts instead of sending it. Cannot be combined with sendAt. Default: false"
+        }
+      },
+      required: ["id", "body"]
+    },
+    handler: handleReplyEmail
+  },
+  {
+    name: "forward-email",
+    description: "Forwards an existing email, keeping it in the same Outlook conversation thread. Sends immediately by default; use sendAt to schedule it or saveAsDraft to leave it in Drafts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "ID of the email to forward"
+        },
+        to: {
+          type: "string",
+          description: "Comma-separated list of recipient email addresses"
+        },
+        body: {
+          type: "string",
+          description: "Your comment, placed above the forwarded message"
+        },
+        cc: {
+          type: "string",
+          description: "Comma-separated list of CC recipient email addresses"
+        },
+        bcc: {
+          type: "string",
+          description: "Comma-separated list of BCC recipient email addresses"
+        },
+        isHtml: {
+          type: "boolean",
+          description: "Set to true to treat body as HTML, false for plain text. If not specified, auto-detects based on <html> tag presence."
+        },
+        importance: {
+          type: "string",
+          description: "Email importance (normal, high, low)",
+          enum: ["normal", "high", "low"]
+        },
+        sendAt: {
+          type: "string",
+          description: "Schedule the forward instead of sending now, as ISO 8601 with an explicit timezone (e.g. '2025-01-31T09:00:00-05:00'). Must be in the future. Cancel with 'cancel-scheduled-email'."
+        },
+        saveAsDraft: {
+          type: "boolean",
+          description: "Save the forward to Drafts instead of sending it. Cannot be combined with sendAt. Default: false"
+        }
+      },
+      required: ["id", "to"]
+    },
+    handler: handleForwardEmail
   },
   {
     name: "schedule-email",
@@ -305,6 +406,8 @@ module.exports = {
   handleSearchEmails,
   handleReadEmail,
   handleSendEmail,
+  handleReplyEmail,
+  handleForwardEmail,
   handleDraftEmail,
   handleScheduleEmail,
   handleListScheduledEmails,
