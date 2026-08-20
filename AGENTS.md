@@ -28,7 +28,7 @@ This is a modular MCP (Model Context Protocol) server that provides Claude with 
 Each module exports tools and handlers:
 - `auth/` - OAuth 2.0 authentication with token management
 - `calendar/` - Calendar operations (list, create, accept, decline, delete events)
-- `email/` - Email management (list, search, read, send, reply, forward, schedule send, mark as read)
+- `email/` - Email management (list, search, read, send, reply, forward, mark as read). Send, reply and forward each take `sendAt` to schedule and `saveAsDraft` to stop at a draft
 - `folder/` - Folder operations (list, create, move)
 - `rules/` - Email rules management
 - `todo/` - Microsoft To Do operations (list/create/delete lists, list/create/update/complete/delete tasks)

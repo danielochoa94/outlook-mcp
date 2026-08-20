@@ -1,5 +1,4 @@
 const {
-  handleScheduleEmail,
   handleListScheduledEmails,
   handleCancelScheduledEmail,
   parseSendTime,
@@ -36,88 +35,6 @@ describe('parseSendTime', () => {
 
   test('rejects a missing time', () => {
     expect(parseSendTime(undefined).error).toMatch(/required/);
-  });
-});
-
-describe('handleScheduleEmail', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    ensureAuthenticated.mockResolvedValue('token');
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    console.error.mockRestore();
-  });
-
-  test('creates a deferred draft and sends it', async () => {
-    callGraphAPI
-      .mockResolvedValueOnce({ id: 'draft-1' })
-      .mockResolvedValueOnce({});
-
-    const result = await handleScheduleEmail({
-      to: 'a@example.com, b@example.com',
-      cc: 'c@example.com',
-      subject: 'Standup notes',
-      body: 'See attached.',
-      sendAt: FUTURE
-    });
-
-    const [, method, path, payload] = callGraphAPI.mock.calls[0];
-    expect(method).toBe('POST');
-    expect(path).toBe('me/messages');
-    expect(payload.singleValueExtendedProperties).toEqual([
-      { id: DEFERRED_SEND_TIME_PROPERTY, value: '2099-01-31T14:00:00Z' }
-    ]);
-    expect(payload.toRecipients).toHaveLength(2);
-    expect(payload.body.contentType).toBe('text');
-
-    expect(callGraphAPI.mock.calls[1][2]).toBe('me/messages/draft-1/send');
-    expect(textOf(result)).toMatch(/scheduled successfully/);
-    expect(textOf(result)).toMatch(/draft-1/);
-  });
-
-  test('detects HTML bodies and honours an explicit isHtml override', async () => {
-    callGraphAPI.mockResolvedValue({ id: 'draft-1' });
-
-    await handleScheduleEmail({
-      to: 'a@example.com', subject: 's', body: '<html><p>hi</p></html>', sendAt: FUTURE
-    });
-    expect(callGraphAPI.mock.calls[0][3].body.contentType).toBe('html');
-
-    callGraphAPI.mockClear();
-    await handleScheduleEmail({
-      to: 'a@example.com', subject: 's', body: '<html><p>hi</p></html>', sendAt: FUTURE, isHtml: false
-    });
-    expect(callGraphAPI.mock.calls[0][3].body.contentType).toBe('text');
-  });
-
-  test('does not call the API when the send time is invalid', async () => {
-    const result = await handleScheduleEmail({
-      to: 'a@example.com', subject: 's', body: 'b', sendAt: '2099-01-31T09:00:00'
-    });
-
-    expect(callGraphAPI).not.toHaveBeenCalled();
-    expect(textOf(result)).toMatch(/no timezone/);
-  });
-
-  test('requires to, subject and body', async () => {
-    expect(textOf(await handleScheduleEmail({ subject: 's', body: 'b', sendAt: FUTURE }))).toMatch(/Recipient/);
-    expect(textOf(await handleScheduleEmail({ to: 'a@x.com', body: 'b', sendAt: FUTURE }))).toMatch(/Subject/);
-    expect(textOf(await handleScheduleEmail({ to: 'a@x.com', subject: 's', sendAt: FUTURE }))).toMatch(/Body/);
-    expect(callGraphAPI).not.toHaveBeenCalled();
-  });
-
-  test('reports send failures', async () => {
-    callGraphAPI
-      .mockResolvedValueOnce({ id: 'draft-1' })
-      .mockRejectedValueOnce(new Error('API call failed with status 403: nope'));
-
-    const result = await handleScheduleEmail({
-      to: 'a@example.com', subject: 's', body: 'b', sendAt: FUTURE
-    });
-
-    expect(textOf(result)).toMatch(/Error scheduling email: .*403/);
   });
 });
 

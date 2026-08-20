@@ -5,15 +5,10 @@ const handleListEmails = require('./list');
 const handleSearchEmails = require('./search');
 const handleReadEmail = require('./read');
 const handleSendEmail = require('./send');
-const handleDraftEmail = require('./draft');
 const { handleReplyEmail, handleForwardEmail } = require('./reply');
 const handleMarkAsRead = require('./mark-as-read');
 const handleDeleteEmail = require('./delete');
-const {
-  handleScheduleEmail,
-  handleListScheduledEmails,
-  handleCancelScheduledEmail
-} = require('./schedule');
+const { handleListScheduledEmails, handleCancelScheduledEmail } = require('./schedule');
 
 // Email tool definitions
 const emailTools = [
@@ -108,7 +103,7 @@ const emailTools = [
   },
   {
     name: "send-email",
-    description: "Composes and sends a new email. Supports both plain text and HTML content.",
+    description: "Composes and sends a NEW email, starting its own conversation thread. Sends immediately by default; use sendAt to schedule it or saveAsDraft to leave it in Drafts. To answer or pass along a message that already exists, use reply-email or forward-email instead so it stays threaded.",
     inputSchema: {
       type: "object",
       properties: {
@@ -143,7 +138,15 @@ const emailTools = [
         },
         saveToSentItems: {
           type: "boolean",
-          description: "Whether to save the email to sent items"
+          description: "Whether to save the email to sent items. Only applies when sending immediately."
+        },
+        sendAt: {
+          type: "string",
+          description: "Schedule the email instead of sending now, as ISO 8601 with an explicit timezone (e.g. '2025-01-31T09:00:00-05:00'). Must be in the future. Cancel with 'cancel-scheduled-email'."
+        },
+        saveAsDraft: {
+          type: "boolean",
+          description: "Save the email to Drafts instead of sending it. Cannot be combined with sendAt. Default: false"
         }
       },
       required: ["to", "subject", "body"]
@@ -251,50 +254,6 @@ const emailTools = [
     handler: handleForwardEmail
   },
   {
-    name: "schedule-email",
-    description: "Composes an email and schedules it to be sent at a future time. The message waits in Drafts and is delivered by Exchange at the requested time, with no client running.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: {
-          type: "string",
-          description: "Comma-separated list of recipient email addresses"
-        },
-        cc: {
-          type: "string",
-          description: "Comma-separated list of CC recipient email addresses"
-        },
-        bcc: {
-          type: "string",
-          description: "Comma-separated list of BCC recipient email addresses"
-        },
-        subject: {
-          type: "string",
-          description: "Email subject"
-        },
-        body: {
-          type: "string",
-          description: "Email body content (plain text or HTML)"
-        },
-        sendAt: {
-          type: "string",
-          description: "When to send, as ISO 8601 with an explicit timezone (e.g. '2025-01-31T09:00:00-05:00' or '2025-01-31T14:00:00Z'). Must be in the future."
-        },
-        isHtml: {
-          type: "boolean",
-          description: "Set to true to send as HTML, false for plain text. If not specified, auto-detects based on <html> tag presence."
-        },
-        importance: {
-          type: "string",
-          description: "Email importance (normal, high, low)",
-          enum: ["normal", "high", "low"]
-        }
-      },
-      required: ["to", "subject", "body", "sendAt"]
-    },
-    handler: handleScheduleEmail
-  },
-  {
     name: "list-scheduled-emails",
     description: "Lists emails that are queued for a future send time, with their IDs and send times",
     inputSchema: {
@@ -323,42 +282,6 @@ const emailTools = [
       required: ["id"]
     },
     handler: handleCancelScheduledEmail
-  },
-  {
-    name: "draft-email",
-    description: "Creates and saves an email draft in Outlook",
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: {
-          type: "string",
-          description: "Comma-separated list of recipient email addresses"
-        },
-        cc: {
-          type: "string",
-          description: "Comma-separated list of CC recipient email addresses"
-        },
-        bcc: {
-          type: "string",
-          description: "Comma-separated list of BCC recipient email addresses"
-        },
-        subject: {
-          type: "string",
-          description: "Draft email subject"
-        },
-        body: {
-          type: "string",
-          description: "Draft email body content (can be plain text or HTML)"
-        },
-        importance: {
-          type: "string",
-          description: "Email importance (normal, high, low)",
-          enum: ["normal", "high", "low"]
-        }
-      },
-      required: []
-    },
-    handler: handleDraftEmail
   },
   {
     name: "mark-as-read",
@@ -408,8 +331,6 @@ module.exports = {
   handleSendEmail,
   handleReplyEmail,
   handleForwardEmail,
-  handleDraftEmail,
-  handleScheduleEmail,
   handleListScheduledEmails,
   handleCancelScheduledEmail,
   handleMarkAsRead,
