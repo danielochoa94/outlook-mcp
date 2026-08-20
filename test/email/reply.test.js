@@ -100,6 +100,22 @@ const ORIGINAL = {
   receivedDateTime: RECEIVED
 };
 
+const OWNER = { mail: 'Daniel@editide.com', userPrincipalName: 'daniel@editide.com' };
+
+// A message you sent: Graph's createReply addresses it straight back at you.
+const SENT_BY_ME = {
+  from: { emailAddress: { name: 'Daniel Ochoa', address: 'Daniel@editide.com' } },
+  toRecipients: [{ emailAddress: { address: 'daniel@tryeditide.com' } }],
+  ccRecipients: [{ emailAddress: { address: 'watcher@example.com' } }],
+  subject: 'Live test',
+  receivedDateTime: RECEIVED
+};
+
+const SELF_ADDRESSED_DRAFT = draftFixture({
+  toRecipients: [{ emailAddress: { address: 'Daniel@editide.com' } }],
+  ccRecipients: []
+});
+
 const GRAPH_DIVIDER =
   '<hr tabindex="-1" style="display:inline-block; width:98%">' +
   '<div id="divRplyFwdMsg" dir="ltr"><font><b>From:</b> x<br>' +
@@ -249,9 +265,9 @@ describe('mergeRecipients', () => {
   });
 });
 
-function mockGraph(draft = draftFixture(), original = ORIGINAL) {
-  callGraphAPI.mockImplementation((token, method) => {
-    if (method === 'GET') return Promise.resolve(original);
+function mockGraph(draft = draftFixture(), original = ORIGINAL, owner = OWNER) {
+  callGraphAPI.mockImplementation((token, method, path) => {
+    if (method === 'GET') return Promise.resolve(path === 'me' ? owner : original);
     if (method === 'POST') return Promise.resolve(draft);
     return Promise.resolve({});
   });
@@ -394,6 +410,80 @@ describe('handleReplyEmail', () => {
     const result = await handleReplyEmail({ id: 'msg-1', body: 'hi' });
 
     expect(textOf(result)).toMatch(/Authentication required/);
+  });
+});
+
+describe('replying to a message you sent', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.TZ = 'America/New_York';
+    ensureAuthenticated.mockResolvedValue('token');
+  });
+
+  test('addresses the people you sent it to instead of yourself', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME);
+
+    const result = await handleReplyEmail({ id: 'msg-1', body: 'Nudge.' });
+
+    expect(patchPayload().toRecipients.map(r => r.emailAddress.address)).toEqual(['daniel@tryeditide.com']);
+    expect(textOf(result)).toMatch(/Reply sent/);
+  });
+
+  test('leaves the original CC out of a plain reply', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME);
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.' });
+
+    expect(patchPayload()).not.toHaveProperty('ccRecipients');
+  });
+
+  test('carries the original CC over on reply-all', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME);
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.', replyAll: true });
+
+    expect(patchPayload().ccRecipients.map(r => r.emailAddress.address)).toEqual(['watcher@example.com']);
+  });
+
+  test('still adds explicit recipients on top', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME);
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.', to: 'extra@example.com' });
+
+    expect(patchPayload().toRecipients.map(r => r.emailAddress.address))
+      .toEqual(['daniel@tryeditide.com', 'extra@example.com']);
+  });
+
+  test('matches the mailbox on its UPN as well as its primary address', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME, { userPrincipalName: 'DANIEL@editide.com' });
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.' });
+
+    expect(patchPayload().toRecipients.map(r => r.emailAddress.address)).toEqual(['daniel@tryeditide.com']);
+  });
+
+  test('keeps Graph\'s recipients when the sent message had none to answer', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, { ...SENT_BY_ME, toRecipients: [] });
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.' });
+
+    expect(patchPayload()).not.toHaveProperty('toRecipients');
+  });
+
+  test('keeps Graph\'s recipients when the mailbox owner cannot be identified', async () => {
+    mockGraph(SELF_ADDRESSED_DRAFT, SENT_BY_ME, null);
+
+    await handleReplyEmail({ id: 'msg-1', body: 'Nudge.' });
+
+    expect(patchPayload()).not.toHaveProperty('toRecipients');
+  });
+
+  test('does not touch recipients when forwarding your own message', async () => {
+    mockGraph(draftFixture({ toRecipients: [] }), SENT_BY_ME);
+
+    await handleForwardEmail({ id: 'msg-1', to: 'peer@example.com', body: 'FYI' });
+
+    expect(patchPayload().toRecipients.map(r => r.emailAddress.address)).toEqual(['peer@example.com']);
   });
 });
 
