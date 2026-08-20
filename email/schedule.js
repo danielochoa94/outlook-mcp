@@ -1,12 +1,13 @@
 /**
- * Scheduled (deferred) email send functionality
+ * Deferred-send plumbing and the queue tools that manage it
  *
  * Exchange holds a message in Drafts/Outbox until PidTagDeferredSendTime passes, so scheduling is
- * "create a draft carrying that property, then send it" - no client needs to stay running.
+ * "create a draft carrying that property, then send it" - no client needs to stay running. The send,
+ * reply and forward tools each stamp that property themselves; what lives here is the shared time
+ * parsing plus listing and cancelling whatever is still queued.
  */
 const { callGraphAPI } = require('../utils/graph-api');
 const { ensureAuthenticated } = require('../auth');
-const { formatRecipients, describeRecipients } = require('./recipient-utils');
 
 const DEFERRED_SEND_TIME_PROPERTY = 'SystemTime 0x3FEF';
 const SCHEDULED_FOLDERS = ['drafts', 'outbox'];
@@ -46,84 +47,6 @@ function authErrorResponse() {
 
 function textResponse(text) {
   return { content: [{ type: "text", text }] };
-}
-
-/**
- * Schedule email handler: creates a deferred draft and hands it to the transport
- * @param {object} args - Tool arguments
- * @returns {object} - MCP response
- */
-async function handleScheduleEmail(args) {
-  const { to, cc, bcc, subject, body, sendAt, importance = 'normal', isHtml } = args || {};
-
-  if (!to) {
-    return textResponse("Recipient (to) is required.");
-  }
-
-  if (!subject) {
-    return textResponse("Subject is required.");
-  }
-
-  if (!body) {
-    return textResponse("Body content is required.");
-  }
-
-  const sendTime = parseSendTime(sendAt);
-  if (sendTime.error) {
-    return textResponse(sendTime.error);
-  }
-
-  try {
-    const accessToken = await ensureAuthenticated();
-
-    const toRecipients = formatRecipients(to);
-    const ccRecipients = formatRecipients(cc);
-    const bccRecipients = formatRecipients(bcc);
-
-    if (toRecipients.length === 0) {
-      return textResponse("No valid recipient addresses were found in 'to'.");
-    }
-
-    const contentType = isHtml === true ? 'html' :
-                        isHtml === false ? 'text' :
-                        body.toLowerCase().includes('<html') ? 'html' : 'text';
-
-    const messageObject = {
-      subject,
-      body: { contentType, content: body },
-      toRecipients,
-      ccRecipients: ccRecipients.length > 0 ? ccRecipients : undefined,
-      bccRecipients: bccRecipients.length > 0 ? bccRecipients : undefined,
-      importance,
-      singleValueExtendedProperties: [
-        { id: DEFERRED_SEND_TIME_PROPERTY, value: sendTime.utc }
-      ]
-    };
-
-    const draft = await callGraphAPI(accessToken, 'POST', 'me/messages', messageObject);
-
-    if (!draft || !draft.id) {
-      return textResponse("Draft creation returned no message id, so the email was not scheduled.");
-    }
-
-    // Sending a deferred draft queues it; Exchange releases it at the deferred time.
-    await callGraphAPI(accessToken, 'POST', `me/messages/${draft.id}/send`);
-
-    return textResponse(
-      `Email scheduled successfully!\n\n` +
-      `Subject: ${subject}\n` +
-      `Recipients: ${describeRecipients(toRecipients, ccRecipients, bccRecipients)}\n` +
-      `Sends at: ${sendTime.date.toISOString()} (UTC)\n` +
-      `Message ID: ${draft.id}\n\n` +
-      `It stays in Drafts until then. Use 'cancel-scheduled-email' with that ID to stop it.`
-    );
-  } catch (error) {
-    if (error.message === 'Authentication required') {
-      return authErrorResponse();
-    }
-
-    return textResponse(`Error scheduling email: ${error.message}`);
-  }
 }
 
 /**
@@ -222,7 +145,6 @@ async function handleCancelScheduledEmail(args) {
 }
 
 module.exports = {
-  handleScheduleEmail,
   handleListScheduledEmails,
   handleCancelScheduledEmail,
   parseSendTime,
