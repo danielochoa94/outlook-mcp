@@ -179,6 +179,10 @@ const rulesTools = [
           type: "string",
           description: "Comma-separated list of sender email addresses for the rule"
         },
+        recipientContains: {
+          type: "string",
+          description: "Comma-separated addresses or domains to match anywhere in the To or CC line. Use this to catch mail addressed to someone else that copies a known address."
+        },
         containsSubject: {
           type: "string",
           description: "Subject text the email must contain"

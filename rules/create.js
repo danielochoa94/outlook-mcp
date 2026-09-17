@@ -7,6 +7,19 @@ const { getFolderIdByName } = require('../email/folder-utils');
 const { getInboxRules } = require('./list');
 
 /**
+ * Split a comma-separated argument into trimmed, non-empty values
+ * @param {string} value - Comma-separated list
+ * @returns {Array<string>} - Parsed values
+ */
+function splitList(value) {
+  if (!value) {
+    return [];
+  }
+  
+  return value.split(',').map(entry => entry.trim()).filter(entry => entry);
+}
+
+/**
  * Create rule handler
  * @param {object} args - Tool arguments
  * @returns {object} - MCP response
@@ -15,6 +28,7 @@ async function handleCreateRule(args) {
   const {
     name,
     fromAddresses,
+    recipientContains,
     containsSubject,
     hasAttachments,
     moveToFolder,
@@ -44,14 +58,14 @@ async function handleCreateRule(args) {
   }
   
   // Validate that at least one condition or action is specified
-  const hasCondition = fromAddresses || containsSubject || hasAttachments === true;
+  const hasCondition = fromAddresses || splitList(recipientContains).length > 0 || containsSubject || hasAttachments === true;
   const hasAction = moveToFolder || markAsRead === true || forwardTo;
 
   if (!hasCondition) {
     return {
       content: [{
         type: "text",
-        text: "At least one condition is required. Specify fromAddresses, containsSubject, or hasAttachments."
+        text: "At least one condition is required. Specify fromAddresses, recipientContains, containsSubject, or hasAttachments."
       }]
     };
   }
@@ -73,6 +87,7 @@ async function handleCreateRule(args) {
     const result = await createInboxRule(accessToken, {
       name,
       fromAddresses,
+      recipientContains,
       containsSubject,
       hasAttachments,
       moveToFolder,
@@ -125,6 +140,7 @@ async function createInboxRule(accessToken, ruleOptions) {
     const {
       name,
       fromAddresses,
+      recipientContains,
       containsSubject,
       hasAttachments,
       moveToFolder,
@@ -186,6 +202,11 @@ async function createInboxRule(accessToken, ruleOptions) {
       if (emailAddresses.length > 0) {
         rule.conditions.fromAddresses = emailAddresses;
       }
+    }
+    
+    const recipients = splitList(recipientContains);
+    if (recipients.length > 0) {
+      rule.conditions.recipientContains = recipients;
     }
     
     if (containsSubject) {

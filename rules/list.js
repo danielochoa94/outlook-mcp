@@ -131,6 +131,11 @@ function formatRuleConditions(rule) {
     conditions.push(`From: ${senders}`);
   }
   
+  // Recipients (Graph matches this against both To and CC)
+  if (rule.conditions?.recipientContains?.length > 0) {
+    conditions.push(`To or CC contains: "${rule.conditions.recipientContains.join(', ')}"`);
+  }
+  
   // Subject contains
   if (rule.conditions?.subjectContains?.length > 0) {
     conditions.push(`Subject contains: "${rule.conditions.subjectContains.join(', ')}"`);
