@@ -30,7 +30,7 @@ Each module exports tools and handlers:
 - `calendar/` - Calendar operations (list, create, accept, decline, delete events)
 - `email/` - Email management (list, search, read, send, reply, forward, mark as read). Send, reply and forward each take `sendAt` to schedule and `saveAsDraft` to stop at a draft. Replying to a message the mailbox owner sent addresses the original's recipients instead of the owner
 - `folder/` - Folder operations (list, create, move)
-- `rules/` - Email rules management
+- `rules/` - Email rules management. `create-rule` takes `recipientContains` to match addresses or domains anywhere in To or CC, which catches mail addressed to someone else that copies a known address
 - `todo/` - Microsoft To Do operations (list/create/delete lists, list/create/update/complete/delete tasks)
 - `sharepoint/` - SharePoint operations (list sites, document libraries, files, download, upload, lists, list items)
 - `utils/` - Shared utilities including Graph API client and OData helpers
